@@ -69,7 +69,7 @@ public class HttpTunnelEventTest {
     }
 
     @Test
-    public void testOpenCloseChannel() throws InterruptedException {
+    public void testOpenCloseClientChannel() throws InterruptedException {
         final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
 
         final OpenCloseIncomingChannelHandler incomingHandler = new OpenCloseIncomingChannelHandler();
@@ -117,6 +117,62 @@ public class HttpTunnelEventTest {
         // Server shouldn't be open or bound
         assertTrue("server is open after close", !server.isOpen());
         assertTrue("server is bound after close", !server.isBound());
+
+        // Check we received the correct outgoing events
+        outgoingHandler.assertSatisfied(TIMEOUT);
+
+        // Check we received the correct incoming events
+        incomingHandler.assertSatisfied(TIMEOUT);
+    }
+
+    @Test
+    public void testOpenCloseServerChannel() throws InterruptedException {
+        final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
+
+        final OpenCloseIncomingChannelHandler incomingHandler = new OpenCloseIncomingChannelHandler();
+        final Channel server = this.createServerChannel(addr, new ChannelPipelineFactory() {
+            @Override
+            public ChannelPipeline getPipeline() throws Exception {
+                return Channels.pipeline(incomingHandler);
+            }
+        });
+
+        // Server should be open and bound
+        assertTrue("server isn't open after connect", server.isOpen());
+        assertTrue("server isn't bound after connect", server.isBound());
+
+        final OpenCloseOutgoingChannelHandler outgoingHandler = new OpenCloseOutgoingChannelHandler();
+        final Channel client = this.createClientChannel(addr, new ChannelPipelineFactory() {
+            @Override
+            public ChannelPipeline getPipeline() throws Exception {
+                return Channels.pipeline(outgoingHandler);
+            }
+        });
+
+        // Check we actually managed to connect
+        assertTrue(client != null);
+
+        // Client should be open, bound, and connected
+        assertTrue("client isn't open after connect", client.isOpen());
+        assertTrue("client isn't bound after connect", client.isBound());
+        assertTrue("client isn't connected after connect", client.isConnected());
+
+        // Send a test message
+        client.write(NettyTestUtils.createData(42)).await();
+
+        // Close the server
+        server.close().await();
+
+        // Server shouldn't be open or bound
+        assertTrue("server is open after close", !server.isOpen());
+        assertTrue("server is bound after close", !server.isBound());
+
+        // Closing the server should have closed the client automatically
+
+        // Client shouldn't be open, bound, or connected
+        assertTrue("client is open after close", !client.isOpen());
+        assertTrue("client is bound after close", !client.isBound());
+        assertTrue("client is connected after close", !client.isConnected());
 
         // Check we received the correct outgoing events
         outgoingHandler.assertSatisfied(TIMEOUT);
