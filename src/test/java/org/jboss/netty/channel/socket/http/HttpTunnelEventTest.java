@@ -68,6 +68,10 @@ public class HttpTunnelEventTest {
         return null;
     }
 
+    /**
+     * Here we close the client first, which should close the client channel and the server accepted channel,
+     * but not the server channel itself.
+     */
     @Test
     public void testOpenCloseClientChannel() throws InterruptedException {
         final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
@@ -111,20 +115,24 @@ public class HttpTunnelEventTest {
         assertTrue("client is bound after close", !client.isBound());
         assertTrue("client is connected after close", !client.isConnected());
 
+        // Check we received the correct outgoing events
+        outgoingHandler.assertSatisfied(TIMEOUT);
+
+        // Check we received the correct incoming events
+        incomingHandler.assertSatisfied(TIMEOUT);
+
         // Close the server
         server.close().await();
 
         // Server shouldn't be open or bound
         assertTrue("server is open after close", !server.isOpen());
         assertTrue("server is bound after close", !server.isBound());
-
-        // Check we received the correct outgoing events
-        outgoingHandler.assertSatisfied(TIMEOUT);
-
-        // Check we received the correct incoming events
-        incomingHandler.assertSatisfied(TIMEOUT);
     }
 
+    /**
+     * Here we close the server first, which should close the server channel itself, the server accepted channel,
+     * and the client channel.
+     */
     @Test
     public void testOpenCloseServerChannel() throws InterruptedException {
         final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
@@ -167,17 +175,17 @@ public class HttpTunnelEventTest {
         assertTrue("server is open after close", !server.isOpen());
         assertTrue("server is bound after close", !server.isBound());
 
+        // Check we received the correct outgoing events
+        outgoingHandler.assertSatisfied(TIMEOUT);
+
+        // Check we received the correct incoming events
+        incomingHandler.assertSatisfied(TIMEOUT);
+
         // Closing the server should have closed the client automatically
 
         // Client shouldn't be open, bound, or connected
         assertTrue("client is open after close", !client.isOpen());
         assertTrue("client is bound after close", !client.isBound());
         assertTrue("client is connected after close", !client.isConnected());
-
-        // Check we received the correct outgoing events
-        outgoingHandler.assertSatisfied(TIMEOUT);
-
-        // Check we received the correct incoming events
-        incomingHandler.assertSatisfied(TIMEOUT);
     }
 }
