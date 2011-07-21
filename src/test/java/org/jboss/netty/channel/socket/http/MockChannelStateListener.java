@@ -63,4 +63,8 @@ public class MockChannelStateListener implements HttpTunnelClientWorkerOwner {
         return serverHostName;
     }
 
+    @Override
+    public void writeComplete(long amount) {
+        // not relevant for test
+    }
 }
