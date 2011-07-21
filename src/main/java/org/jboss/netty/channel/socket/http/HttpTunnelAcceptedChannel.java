@@ -91,6 +91,9 @@ class HttpTunnelAcceptedChannel extends AbstractChannel implements
     @Override
     public void clientClosed() {
         this.setClosed();
+
+        Channels.fireChannelDisconnected(this);
+        Channels.fireChannelUnbound(this);
         Channels.fireChannelClosed(this);
     }
 

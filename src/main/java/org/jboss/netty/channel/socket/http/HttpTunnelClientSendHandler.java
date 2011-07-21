@@ -27,6 +27,7 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.DownstreamMessageEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.channel.WriteCompletionEvent;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.logging.InternalLogger;
@@ -34,7 +35,7 @@ import org.jboss.netty.logging.InternalLoggerFactory;
 
 /**
  * Pipeline component which deals with sending data from the client to server.
- * 
+ *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
@@ -77,8 +78,8 @@ class HttpTunnelClientSendHandler extends SimpleChannelHandler {
             }
             HttpRequest request =
                     HttpTunnelMessageUtils
-                            .createOpenTunnelRequest(tunnelChannel
-                                    .getServerHostName());
+                    .createOpenTunnelRequest(tunnelChannel
+                            .getServerHostName());
             Channel thisChannel = ctx.getChannel();
             DownstreamMessageEvent event =
                     new DownstreamMessageEvent(thisChannel,
@@ -208,6 +209,12 @@ class HttpTunnelClientSendHandler extends SimpleChannelHandler {
         shutdownTunnel(ctx, e);
     }
 
+    @Override
+    public void writeComplete(ChannelHandlerContext ctx, WriteCompletionEvent e)
+            throws Exception {
+        tunnelChannel.writeComplete(e.getWrittenAmount());
+    }
+
     private void shutdownTunnel(ChannelHandlerContext ctx,
             ChannelStateEvent postShutdownEvent) {
         if (LOG.isDebugEnabled()) {
@@ -224,8 +231,8 @@ class HttpTunnelClientSendHandler extends SimpleChannelHandler {
         }
 
         if (!disconnecting.compareAndSet(false, true)) {
-            if (LOG.isWarnEnabled()) {
-                LOG.warn("tunnel shutdown process already initiated for tunnel " +
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("tunnel shutdown process already initiated for tunnel " +
                         tunnelId);
             }
             return;

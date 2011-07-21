@@ -17,6 +17,7 @@ package org.jboss.netty.channel.socket.http;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -61,9 +62,9 @@ public class HttpTunnelClientChannel extends AbstractChannel implements
 
     volatile ChannelFuture connectFuture;
 
-    volatile boolean connected;
-
-    volatile boolean bound;
+    private final AtomicBoolean open;
+    private final AtomicBoolean connected;
+    private final AtomicBoolean bound;
 
     volatile InetSocketAddress serverAddress;
 
@@ -94,6 +95,10 @@ public class HttpTunnelClientChannel extends AbstractChannel implements
                         config.getWriteBufferHighWaterMark());
         serverAddress = null;
 
+        open = new AtomicBoolean(true);
+        connected = new AtomicBoolean(false);
+        bound = new AtomicBoolean(false);
+
         realConnections.add(sendChannel);
         realConnections.add(pollChannel);
 
@@ -107,12 +112,12 @@ public class HttpTunnelClientChannel extends AbstractChannel implements
 
     @Override
     public boolean isBound() {
-        return bound;
+        return bound.get();
     }
 
     @Override
     public boolean isConnected() {
-        return connected;
+        return connected.get();
     }
 
     @Override
@@ -150,18 +155,17 @@ public class HttpTunnelClientChannel extends AbstractChannel implements
     }
 
     void onDisconnectRequest(final ChannelFuture disconnectFuture) {
+        if (!connected.getAndSet(false))
+            return;
+
         ChannelFutureListener disconnectListener =
                 new ConsolidatingFutureListener(disconnectFuture, 2);
         sendChannel.disconnect().addListener(disconnectListener);
         pollChannel.disconnect().addListener(disconnectListener);
 
-        disconnectFuture.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future)
-                    throws Exception {
-                serverAddress = null;
-            }
-        });
+        serverAddress = null;
+
+        Channels.fireChannelDisconnected(this);
     }
 
     void onBindRequest(InetSocketAddress localAddress,
@@ -184,17 +188,30 @@ public class HttpTunnelClientChannel extends AbstractChannel implements
     }
 
     void onUnbindRequest(final ChannelFuture unbindFuture) {
+        if (!bound.getAndSet(false))
+            return;
+
         ChannelFutureListener unbindListener =
                 new ConsolidatingFutureListener(unbindFuture, 2);
         sendChannel.unbind().addListener(unbindListener);
         pollChannel.unbind().addListener(unbindListener);
+
+        Channels.fireChannelUnbound(this);
     }
 
     void onCloseRequest(final ChannelFuture closeFuture) {
+        if (!open.getAndSet(false))
+            return;
+
+        this.onDisconnectRequest(null);
+        this.onUnbindRequest(null);
+
         ChannelFutureListener closeListener =
                 new CloseConsolidatingFutureListener(closeFuture, 2);
         sendChannel.close().addListener(closeListener);
         pollChannel.close().addListener(closeListener);
+
+        Channels.fireChannelClosed(this);
     }
 
     private ChannelPipeline createSendPipeline() {
@@ -303,11 +320,13 @@ public class HttpTunnelClientChannel extends AbstractChannel implements
         }
 
         protected void allFuturesComplete() {
-            completionFuture.setSuccess();
+            if (completionFuture != null)
+                completionFuture.setSuccess();
         }
 
         protected void futureFailed(ChannelFuture future) {
-            completionFuture.setFailure(future.getCause());
+            if (completionFuture != null)
+                completionFuture.setFailure(future.getCause());
         }
     }
 
@@ -316,8 +335,7 @@ public class HttpTunnelClientChannel extends AbstractChannel implements
      * Instead, we must call setClosed() on the channel itself, once all the child channels are
      * closed or if we fail to close them for whatever reason.
      */
-    private final class CloseConsolidatingFutureListener extends
-            ConsolidatingFutureListener {
+    private class CloseConsolidatingFutureListener extends ConsolidatingFutureListener {
 
         public CloseConsolidatingFutureListener(ChannelFuture completionFuture,
                 int numToConsolidate) {
@@ -345,7 +363,7 @@ public class HttpTunnelClientChannel extends AbstractChannel implements
      * Contains the implementing methods of HttpTunnelClientWorkerOwner, so that these are hidden
      * from the public API.
      */
-    class WorkerCallbacks implements HttpTunnelClientWorkerOwner {
+    private class WorkerCallbacks implements HttpTunnelClientWorkerOwner {
 
         @Override
         public void onConnectRequest(ChannelFuture connectFuture,
@@ -363,13 +381,11 @@ public class HttpTunnelClientChannel extends AbstractChannel implements
 
         @Override
         public void fullyEstablished() {
-            if (!bound) {
-                bound = true;
+            if (!bound.getAndSet(true))
                 Channels.fireChannelBound(HttpTunnelClientChannel.this,
                         getLocalAddress());
-            }
 
-            connected = true;
+            connected.set(true);
             connectFuture.setSuccess();
             Channels.fireChannelConnected(HttpTunnelClientChannel.this,
                     getRemoteAddress());
@@ -378,6 +394,13 @@ public class HttpTunnelClientChannel extends AbstractChannel implements
         @Override
         public void onMessageReceived(ChannelBuffer content) {
             Channels.fireMessageReceived(HttpTunnelClientChannel.this, content);
+        }
+
+        @Override
+        public void writeComplete(long amount) {
+            // Only fire for stuff sent after the initial setup
+            if (HttpTunnelClientChannel.this.isConnected())
+                Channels.fireWriteComplete(HttpTunnelClientChannel.this, amount);
         }
 
         @Override
