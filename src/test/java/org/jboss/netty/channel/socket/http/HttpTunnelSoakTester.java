@@ -49,6 +49,9 @@ import org.jboss.netty.channel.group.DefaultChannelGroup;
 import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.SocketChannel;
+import org.jboss.netty.channel.socket.http.client.HttpTunnelClientChannelConfig;
+import org.jboss.netty.channel.socket.http.client.HttpTunnelClientChannelFactory;
+import org.jboss.netty.channel.socket.http.server.HttpTunnelServerChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 

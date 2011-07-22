@@ -23,6 +23,7 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelDownstreamHandler;
+import org.jboss.netty.channel.socket.http.util.ChannelFutureAggregator;
 
 /**
  * Downstream handler which places an upper bound on the size of written

@@ -27,6 +27,7 @@ import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.socket.http.util.NettyTestUtils;
 import org.junit.Before;
 import org.junit.Test;
 

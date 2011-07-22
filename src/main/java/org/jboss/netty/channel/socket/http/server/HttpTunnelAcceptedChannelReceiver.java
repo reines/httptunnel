@@ -13,17 +13,25 @@
  * License for the specific language governing permissions and limitations
  * under the License.
  */
-package org.jboss.netty.channel.socket.http;
+package org.jboss.netty.channel.socket.http.server;
+
+import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.channel.socket.http.SaturationStateChange;
 
 /**
- * Represents the state change of a chanel in response in the amount of pending data to be
- * sent - either no change occurs, the channel becomes desaturated (indicating that writing
- * can safely commence) or it becomes saturated (indicating that writing should cease).
+ * Interface from the server message switch and channel sink to an
+ * accepted channel. Exists primarily for mock testing purposes.
  * 
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
  */
-public enum SaturationStateChange {
-    NO_CHANGE, DESATURATED, SATURATED
+interface HttpTunnelAcceptedChannelReceiver {
+
+    public void updateInterestOps(SaturationStateChange transition);
+
+    public void dataReceived(ChannelBuffer data);
+
+    public void clientClosed();
+
 }

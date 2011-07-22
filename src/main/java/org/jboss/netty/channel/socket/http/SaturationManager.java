@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
  */
-class SaturationManager {
+public class SaturationManager {
     private AtomicLong desaturationPoint;
 
     private AtomicLong saturationPoint;
