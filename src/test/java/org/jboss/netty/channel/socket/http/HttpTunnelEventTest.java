@@ -19,6 +19,7 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.codec.string.StringDecoder;
 import org.jboss.netty.handler.codec.string.StringEncoder;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class HttpTunnelEventTest {
@@ -135,7 +136,7 @@ public class HttpTunnelEventTest {
      * Here we close the server first, which should close the server channel itself, the server accepted channel,
      * and the client channel.
      */
-    @Test
+    @Test @Ignore
     public void testOpenCloseServerChannel() throws InterruptedException {
         final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
 

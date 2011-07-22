@@ -16,6 +16,7 @@
 package org.jboss.netty.channel.socket.http;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.jboss.netty.channel.AbstractServerChannel;
 import org.jboss.netty.channel.ChannelFuture;
@@ -40,6 +41,8 @@ public class HttpTunnelServerChannel extends AbstractServerChannel implements
 
     final ServerMessageSwitch messageSwitch;
 
+    private final AtomicBoolean opened;
+
     private final ChannelFutureListener CLOSE_FUTURE_PROXY =
             new ChannelFutureListener() {
                 @Override
@@ -60,6 +63,8 @@ public class HttpTunnelServerChannel extends AbstractServerChannel implements
         sink.setRealChannel(realChannel);
         sink.setCloseListener(CLOSE_FUTURE_PROXY);
         config = new HttpTunnelServerChannelConfig(realChannel);
+
+        opened = new AtomicBoolean(true);
         Channels.fireChannelOpen(this);
     }
 
@@ -86,7 +91,20 @@ public class HttpTunnelServerChannel extends AbstractServerChannel implements
 
     @Override
     protected boolean setClosed() {
-        return super.setClosed();
+        if (!opened.getAndSet(false))
+            return false;
+
+//        messageSwitch.serverCloseTunnel(tunnelId);
+
+        // internal disconnect
+        // internal unbind
+
+        final boolean success = super.setClosed();
+
+        System.out.println("fire closed");
+        Channels.fireChannelClosed(this);
+
+        return success;
     }
 
     /**
