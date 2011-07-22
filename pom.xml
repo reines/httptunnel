@@ -87,4 +87,12 @@
       </plugin>
     </plugins>
   </build>
+
+  <distributionManagement>
+    <repository>
+      <id>central</id>
+      <name>libs-release</name>
+      <url>http://174.129.12.54:8081/artifactory/libs-release</url>
+    </repository>
+  </distributionManagement>
 </project>
