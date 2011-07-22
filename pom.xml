@@ -90,9 +90,9 @@
 
   <distributionManagement>
     <repository>
-      <id>central</id>
-      <name>libs-release</name>
-      <url>http://174.129.12.54:8081/artifactory/libs-release</url>
+      <id>central-deploy</id>
+      <name>libs-release-local</name>
+      <url>http://174.129.12.54:8081/artifactory/libs-release-local</url>
     </repository>
   </distributionManagement>
 </project>
