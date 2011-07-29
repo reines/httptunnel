@@ -21,54 +21,64 @@ import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.ChannelFuture;
 
 /**
- * Interface which is used by the send and poll "worker" channels
- * to notify the virtual tunnel channel of key events, and to get
- * access to higher level information required for correct
- * operation.
+ * Interface which is used by the send and poll "worker" channels to notify the
+ * virtual tunnel channel of key events, and to get access to higher level
+ * information required for correct operation.
  *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
  */
 interface HttpTunnelClientWorkerOwner {
-    /**
-     * The HTTP tunnel client sink invokes this when the application code requests the connection
-     * of an HTTP tunnel to the specified remote address.
-     */
-    public void onConnectRequest(ChannelFuture connectFuture,
-            InetSocketAddress remoteAddress);
+	/**
+	 * The HTTP tunnel client sink invokes this when the application code
+	 * requests the connection of an HTTP tunnel to the specified remote
+	 * address.
+	 */
+	public void onConnectRequest(ChannelFuture connectFuture, InetSocketAddress remoteAddress);
 
-    /**
-     * The send channel handler calls this method when the server accepts the open tunnel request,
-     * returning a unique tunnel ID.
-     *
-     * @param tunnelId the server allocated tunnel ID
-     */
-    public void onTunnelOpened(String tunnelId);
+	/**
+	 * The HTTP tunnel is being shut down.
+	 */
+	public void onDisconnectRequest(ChannelFuture connectFuture);
 
-    /**
-     * The poll channel handler calls this method when the poll channel is connected, indicating
-     * that full duplex communications are now possible.
-     */
-    public void fullyEstablished();
+	/**
+	 * The send channel handler calls this method when the server accepts the
+	 * open tunnel request, returning a unique tunnel ID.
+	 *
+	 * @param tunnelId
+	 *            the server allocated tunnel ID
+	 */
+	public void onTunnelOpened(String tunnelId);
 
-    /**
-     * The poll handler calls this method when some data is received and decoded from the server.
-     * @param content the data received from the server
-     */
-    public void onMessageReceived(ChannelBuffer content);
+	/**
+	 * The poll channel handler calls this method when the poll channel is
+	 * connected, indicating that full duplex communications are now possible.
+	 */
+	public void fullyEstablished();
 
-    /**
-     * The send channel handler calls this method when any data is written.
-     * @param amount the amount of data written, in bytes
-     */
-    public void writeComplete(long amount);
+	/**
+	 * The poll handler calls this method when some data is received and decoded
+	 * from the server.
+	 *
+	 * @param content
+	 *            the data received from the server
+	 */
+	public void onMessageReceived(ChannelBuffer content);
 
-    /**
-     * @return the name of the server with whom we are communicating with - this is used within
-     * the HOST HTTP header for all requests. This is particularly important for operation behind
-     * a proxy, where the HOST string is used to route the request.
-     */
-    public String getServerHostName();
+	/**
+	 * The send channel handler calls this method when any data is written.
+	 *
+	 * @param amount
+	 *            the amount of data written, in bytes
+	 */
+	public void writeComplete(long amount);
 
+	/**
+	 * @return the name of the server with whom we are communicating with - this
+	 *         is used within the HOST HTTP header for all requests. This is
+	 *         particularly important for operation behind a proxy, where the
+	 *         HOST string is used to route the request.
+	 */
+	public String getServerHostName();
 }

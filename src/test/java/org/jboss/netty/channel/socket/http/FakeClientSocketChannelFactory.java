@@ -28,26 +28,25 @@ import org.jboss.netty.channel.socket.SocketChannel;
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  */
 public class FakeClientSocketChannelFactory implements
-        ClientSocketChannelFactory {
+		ClientSocketChannelFactory {
 
-    public List<FakeSocketChannel> createdChannels;
+	public List<FakeSocketChannel> createdChannels;
 
-    public FakeClientSocketChannelFactory() {
-        createdChannels = new ArrayList<FakeSocketChannel>();
-    }
+	public FakeClientSocketChannelFactory() {
+		createdChannels = new ArrayList<FakeSocketChannel>();
+	}
 
-    @Override
-    public SocketChannel newChannel(ChannelPipeline pipeline) {
-        FakeSocketChannel channel =
-                new FakeSocketChannel(null, this, pipeline,
-                        new FakeChannelSink());
-        createdChannels.add(channel);
-        return channel;
-    }
+	@Override
+	public SocketChannel newChannel(ChannelPipeline pipeline) {
+		FakeSocketChannel channel = new FakeSocketChannel(null, this, pipeline,
+				new FakeChannelSink());
+		createdChannels.add(channel);
+		return channel;
+	}
 
-    @Override
-    public void releaseExternalResources() {
-        // nothing to do
-    }
+	@Override
+	public void releaseExternalResources() {
+		// nothing to do
+	}
 
 }

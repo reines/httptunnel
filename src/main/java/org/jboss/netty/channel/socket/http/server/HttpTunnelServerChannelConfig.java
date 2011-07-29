@@ -15,14 +15,7 @@
  */
 package org.jboss.netty.channel.socket.http.server;
 
-import java.util.Map;
-import java.util.Map.Entry;
-
-import org.jboss.netty.buffer.ChannelBufferFactory;
-import org.jboss.netty.channel.ChannelPipelineFactory;
-import org.jboss.netty.channel.socket.ServerSocketChannel;
 import org.jboss.netty.channel.socket.ServerSocketChannelConfig;
-import org.jboss.netty.channel.socket.http.util.DefaultTunnelIdGenerator;
 import org.jboss.netty.channel.socket.http.util.TunnelIdGenerator;
 
 /**
@@ -30,115 +23,8 @@ import org.jboss.netty.channel.socket.http.util.TunnelIdGenerator;
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
  */
-public class HttpTunnelServerChannelConfig implements ServerSocketChannelConfig {
+public interface HttpTunnelServerChannelConfig extends ServerSocketChannelConfig {
 
-    private ChannelPipelineFactory pipelineFactory;
-
-    private final ServerSocketChannel realChannel;
-
-    private TunnelIdGenerator tunnelIdGenerator =
-            new DefaultTunnelIdGenerator();
-
-    public HttpTunnelServerChannelConfig(ServerSocketChannel realChannel) {
-        this.realChannel = realChannel;
-    }
-
-    private ServerSocketChannelConfig getWrappedConfig() {
-        return realChannel.getConfig();
-    }
-
-    @Override
-    public int getBacklog() {
-        return getWrappedConfig().getBacklog();
-    }
-
-    @Override
-    public int getReceiveBufferSize() {
-        return getWrappedConfig().getReceiveBufferSize();
-    }
-
-    @Override
-    public boolean isReuseAddress() {
-        return getWrappedConfig().isReuseAddress();
-    }
-
-    @Override
-    public void setBacklog(int backlog) {
-        getWrappedConfig().setBacklog(backlog);
-    }
-
-    @Override
-    public void setPerformancePreferences(int connectionTime, int latency,
-            int bandwidth) {
-        getWrappedConfig().setPerformancePreferences(connectionTime, latency,
-                bandwidth);
-    }
-
-    @Override
-    public void setReceiveBufferSize(int receiveBufferSize) {
-        getWrappedConfig().setReceiveBufferSize(receiveBufferSize);
-    }
-
-    @Override
-    public void setReuseAddress(boolean reuseAddress) {
-        getWrappedConfig().setReuseAddress(reuseAddress);
-    }
-
-    @Override
-    public ChannelBufferFactory getBufferFactory() {
-        return getWrappedConfig().getBufferFactory();
-    }
-
-    @Override
-    public int getConnectTimeoutMillis() {
-        return getWrappedConfig().getConnectTimeoutMillis();
-    }
-
-    @Override
-    public ChannelPipelineFactory getPipelineFactory() {
-        return pipelineFactory;
-    }
-
-    @Override
-    public void setBufferFactory(ChannelBufferFactory bufferFactory) {
-        getWrappedConfig().setBufferFactory(bufferFactory);
-    }
-
-    @Override
-    public void setConnectTimeoutMillis(int connectTimeoutMillis) {
-        getWrappedConfig().setConnectTimeoutMillis(connectTimeoutMillis);
-    }
-
-    @Override
-    public boolean setOption(String name, Object value) {
-        if (name.equals("pipelineFactory")) {
-            setPipelineFactory((ChannelPipelineFactory) value);
-            return true;
-        } else if (name.equals("tunnelIdGenerator")) {
-            setTunnelIdGenerator((TunnelIdGenerator) value);
-            return true;
-        } else {
-            return getWrappedConfig().setOption(name, value);
-        }
-    }
-
-    @Override
-    public void setOptions(Map<String, Object> options) {
-        for (Entry<String, Object> e: options.entrySet()) {
-            setOption(e.getKey(), e.getValue());
-        }
-    }
-
-    @Override
-    public void setPipelineFactory(ChannelPipelineFactory pipelineFactory) {
-        this.pipelineFactory = pipelineFactory;
-    }
-
-    public void setTunnelIdGenerator(TunnelIdGenerator tunnelIdGenerator) {
-        this.tunnelIdGenerator = tunnelIdGenerator;
-    }
-
-    public TunnelIdGenerator getTunnelIdGenerator() {
-        return tunnelIdGenerator;
-    }
+	public void setTunnelIdGenerator(TunnelIdGenerator tunnelIdGenerator);
+	public TunnelIdGenerator getTunnelIdGenerator();
 }

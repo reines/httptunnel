@@ -16,129 +16,260 @@
 package org.jboss.netty.channel.socket.http.server;
 
 import java.net.InetSocketAddress;
+import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.jboss.netty.channel.AbstractServerChannel;
+import org.jboss.netty.channel.ChannelFactory;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineException;
+import org.jboss.netty.channel.ChannelPipelineFactory;
+import org.jboss.netty.channel.ChannelSink;
 import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.socket.ServerSocketChannel;
-import org.jboss.netty.channel.socket.ServerSocketChannelConfig;
+import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
+import org.jboss.netty.channel.socket.http.BindState;
+import org.jboss.netty.channel.socket.http.util.TunnelIdGenerator;
+import org.jboss.netty.logging.InternalLogger;
+import org.jboss.netty.logging.InternalLoggerFactory;
 
 /**
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
  */
-public class HttpTunnelServerChannel extends AbstractServerChannel implements
-        ServerSocketChannel {
+public class HttpTunnelServerChannel extends AbstractServerChannel implements ServerSocketChannel {
 
-    private final ServerSocketChannel realChannel;
+	private static final InternalLogger LOG = InternalLoggerFactory.getInstance(HttpTunnelServerChannel.class);
 
-    final HttpTunnelServerChannelConfig config;
+	private final String tunnelIdPrefix;
+	private final ConcurrentHashMap<String, HttpTunnelAcceptedChannel> tunnels;
+	private final ServerSocketChannel realChannel;
+	private final HttpTunnelServerChannelConfig config;
 
-    final ServerMessageSwitch messageSwitch;
+	private final AtomicBoolean opened;
+	private final AtomicReference<BindState> bindState;
 
-    private final AtomicBoolean opened;
+	protected HttpTunnelServerChannel(ChannelFactory factory, ChannelPipeline pipeline, ChannelSink sink, ServerSocketChannelFactory inboundFactory, ChannelGroup realConnections) {
+		super (factory, pipeline, sink);
 
-    private final ChannelFutureListener CLOSE_FUTURE_PROXY =
-            new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future)
-                        throws Exception {
-                    HttpTunnelServerChannel.this.setClosed();
-                }
-            };
+		tunnelIdPrefix = Long.toHexString(new Random().nextLong());
+		tunnels = new ConcurrentHashMap<String, HttpTunnelAcceptedChannel>();
 
-    protected HttpTunnelServerChannel(HttpTunnelServerChannelFactory factory,
-            ChannelPipeline pipeline) {
-        super(factory, pipeline, new HttpTunnelServerChannelSink());
+		realChannel = inboundFactory.newChannel(this.createRealPipeline(realConnections));
 
-        messageSwitch = new ServerMessageSwitch(new TunnelCreator());
-        realChannel = factory.createRealChannel(this, messageSwitch);
-        HttpTunnelServerChannelSink sink =
-                (HttpTunnelServerChannelSink) getPipeline().getSink();
-        sink.setRealChannel(realChannel);
-        sink.setCloseListener(CLOSE_FUTURE_PROXY);
-        config = new HttpTunnelServerChannelConfig(realChannel);
+		config = new DefaultHttpTunnelServerChannelConfig(realChannel);
 
-        opened = new AtomicBoolean(true);
-        Channels.fireChannelOpen(this);
-    }
+		opened = new AtomicBoolean(true);
+		bindState = new AtomicReference<BindState>(BindState.UNBOUND);
 
-    @Override
-    public ServerSocketChannelConfig getConfig() {
-        return config;
-    }
+		realConnections.add(realChannel);
 
-    @Override
-    public InetSocketAddress getLocalAddress() {
-        return realChannel.getLocalAddress();
-    }
+		Channels.fireChannelOpen(this);
+	}
 
-    @Override
-    public InetSocketAddress getRemoteAddress() {
-        // server channels never have a remote address
-        return null;
-    }
+	@Override
+	public HttpTunnelServerChannelConfig getConfig() {
+		return config;
+	}
 
-    @Override
-    public boolean isBound() {
-        return realChannel.isBound();
-    }
+	@Override
+	public InetSocketAddress getLocalAddress() {
+		return this.isBound() ? realChannel.getLocalAddress() : null;
+	}
 
-    @Override
-    protected boolean setClosed() {
-        if (!opened.getAndSet(false))
-            return false;
+	@Override
+	public InetSocketAddress getRemoteAddress() {
+		return null; // server channels never have a remote address
+	}
 
-//        messageSwitch.serverCloseTunnel(tunnelId);
+	@Override
+	public boolean isBound() {
+		return bindState.get() == BindState.BOUND;
+	}
 
-        // internal disconnect
-        // internal unbind
+	@Override
+	protected synchronized boolean setClosed() {
+		final boolean success = super.setClosed();
+		Channels.fireChannelClosed(this);
 
-        final boolean success = super.setClosed();
+		return success;
+	}
 
-        System.out.println("fire closed");
-        Channels.fireChannelClosed(this);
+	synchronized ChannelFuture internalClose(final ChannelFuture closeFuture) {
+		if (!opened.getAndSet(false)) {
+			closeFuture.setSuccess();
+			return closeFuture;
+		}
 
-        return success;
-    }
+		// First unbind
+		internalUnbind(Channels.future(this)).addListener(new ChannelFutureListener() {
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				// Finally close
+				internalDoClose(closeFuture);
+			}
+		});
 
-    /**
-     * Used to hide the newChannel method from the public API.
-     */
-    private final class TunnelCreator implements
-            HttpTunnelAcceptedChannelFactory {
+		return closeFuture;
+	}
 
-        TunnelCreator() {
-            super();
-        }
+	synchronized ChannelFuture internalDoClose(final ChannelFuture closeFuture) {
+		if (LOG.isDebugEnabled())
+			LOG.debug("HTTP Tunnel server channel closing");
 
-        @Override
-        public HttpTunnelAcceptedChannelReceiver newChannel(
-                String newTunnelId, InetSocketAddress remoteAddress) {
-            ChannelPipeline childPipeline = null;
-            try {
-                childPipeline = getConfig().getPipelineFactory().getPipeline();
-            } catch (Exception e) {
-                throw new ChannelPipelineException(
-                        "Failed to initialize a pipeline.", e);
-            }
-            HttpTunnelAcceptedChannelConfig config =
-                    new HttpTunnelAcceptedChannelConfig();
-            HttpTunnelAcceptedChannelSink sink =
-                    new HttpTunnelAcceptedChannelSink(messageSwitch,
-                            newTunnelId, config);
-            return new HttpTunnelAcceptedChannel(HttpTunnelServerChannel.this,
-                    getFactory(), childPipeline, sink, remoteAddress, config);
-        }
+		final ChannelFutureListener closeListener = new ChannelFutureListener() {
+			@Override
+			public void operationComplete(ChannelFuture future) {
+				if (future.isSuccess()) {
+					if (LOG.isDebugEnabled())
+						LOG.debug("Tunnel closed");
 
-        @Override
-        public String generateTunnelId() {
-            return config.getTunnelIdGenerator().generateId();
-        }
-    }
+					setClosed();
+
+					if (closeFuture != null)
+						closeFuture.setSuccess();
+				}
+				else {
+					if (LOG.isWarnEnabled())
+						LOG.warn("Failed to close tunnel");
+
+					setClosed();
+
+					if (closeFuture != null)
+						closeFuture.setFailure(future.getCause());
+				}
+			}
+		};
+
+		realChannel.close().addListener(closeListener);
+
+		return closeFuture;
+	}
+
+	synchronized ChannelFuture internalBind(final InetSocketAddress addr, final ChannelFuture bindFuture) {
+		// Update the bind state - if we fail then throw an illegal state exception
+		if (!bindState.compareAndSet(BindState.UNBOUND, BindState.BINDING)) {
+			final Exception error = new IllegalStateException("Already bound or in the process of binding");
+
+			bindFuture.setFailure(error);
+			Channels.fireExceptionCaught(this, error);
+
+			return bindFuture;
+		}
+
+		if (LOG.isDebugEnabled())
+			LOG.debug("HTTP Tunnel server channel binding to " + addr);
+
+		final ChannelFutureListener bindListener = new ChannelFutureListener() {
+			@Override
+			public void operationComplete(ChannelFuture future) {
+				if (future.isSuccess()) {
+					bindState.set(BindState.BOUND);
+					Channels.fireChannelBound(HttpTunnelServerChannel.this, addr);
+
+					if (bindFuture != null)
+						bindFuture.setSuccess();
+				}
+				else {
+					bindState.set(BindState.UNBOUND);
+					Channels.fireExceptionCaught(HttpTunnelServerChannel.this, future.getCause());
+
+					if (bindFuture != null)
+						bindFuture.setFailure(future.getCause());
+				}
+			}
+		};
+
+		realChannel.bind(addr).addListener(bindListener);
+
+		return bindFuture;
+	}
+
+	synchronized ChannelFuture internalUnbind(final ChannelFuture unbindFuture) {
+		if (!bindState.compareAndSet(BindState.BOUND, BindState.UNBINDING)) {
+			unbindFuture.setSuccess();
+			return unbindFuture;
+		}
+
+		final ChannelFutureListener unbindListener = new ChannelFutureListener() {
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				if (future.isSuccess()) {
+					bindState.set(BindState.UNBOUND);
+					Channels.fireChannelUnbound(HttpTunnelServerChannel.this);
+
+					if (unbindFuture != null)
+						unbindFuture.setSuccess();
+				}
+				else {
+					bindState.set(BindState.UNBOUND);
+					Channels.fireExceptionCaught(HttpTunnelServerChannel.this, future.getCause());
+
+					if (unbindFuture != null)
+						unbindFuture.setFailure(future.getCause());
+				}
+			}
+		};
+
+		realChannel.unbind().addListener(unbindListener);
+
+		return unbindFuture;
+	}
+
+	public HttpTunnelAcceptedChannel createTunnel(InetSocketAddress remoteAddress) {
+		final TunnelIdGenerator tunnelIdGenerator = config.getTunnelIdGenerator();
+
+		final ChannelPipeline childPipeline;
+
+		try {
+			childPipeline = config.getPipelineFactory().getPipeline();
+		}
+		catch (Exception e) {
+			throw new ChannelPipelineException("Failed to initialize a pipeline.", e);
+		}
+
+		final String tunnelId = String.format("%s_%s", tunnelIdPrefix, tunnelIdGenerator.generateId());
+		final HttpTunnelAcceptedChannel tunnel = new HttpTunnelAcceptedChannel(this, this.getFactory(), childPipeline, new HttpTunnelAcceptedChannelSink(), remoteAddress, tunnelId);
+
+		tunnels.put(tunnelId, tunnel);
+
+		Channels.fireChannelOpen(tunnel);
+		Channels.fireChannelBound(tunnel, this.getLocalAddress());
+		Channels.fireChannelConnected(tunnel, remoteAddress);
+
+		return tunnel;
+	}
+
+	public HttpTunnelAcceptedChannel getTunnel(String tunnelId) {
+		if (tunnelId == null)
+			throw new IllegalArgumentException("no tunnel id specified in request");
+
+		return tunnels.get(tunnelId);
+	}
+
+	public HttpTunnelAcceptedChannel removeTunnel(String tunnelId) {
+		return tunnels.remove(tunnelId);
+	}
+
+	private ChannelPipeline createRealPipeline(ChannelGroup realConnections) {
+		final ChannelPipelineFactory realPipelineFactory = new HttpTunnelAcceptedChannelPipelineFactory(this);
+
+		final ChannelPipeline pipeline;
+		try {
+			pipeline = realPipelineFactory.getPipeline();
+		}
+		catch (Exception e) {
+			throw new ChannelPipelineException("Failed to initialize a pipeline.", e);
+		}
+
+		pipeline.addFirst(HttpTunnelServerChannelHandler.NAME, new HttpTunnelServerChannelHandler(this, realPipelineFactory, realConnections));
+
+		return pipeline;
+	}
 }

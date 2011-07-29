@@ -27,55 +27,55 @@ import org.jboss.netty.channel.socket.ServerSocketChannelConfig;
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  */
 public class FakeServerSocketChannelConfig extends DefaultChannelConfig
-        implements ServerSocketChannelConfig {
+		implements ServerSocketChannelConfig {
 
-    public int backlog = 5;
+	public int backlog = 5;
 
-    public int receiveBufferSize = 1024;
+	public int receiveBufferSize = 1024;
 
-    public boolean reuseAddress = false;
+	public boolean reuseAddress = false;
 
-    public int connectionTimeout = 5000;
+	public int connectionTimeout = 5000;
 
-    public ChannelPipelineFactory pipelineFactory;
+	public ChannelPipelineFactory pipelineFactory;
 
-    public int writeTimeout = 5000;
+	public int writeTimeout = 5000;
 
-    public ChannelBufferFactory bufferFactory = new HeapChannelBufferFactory();
+	public ChannelBufferFactory bufferFactory = new HeapChannelBufferFactory();
 
-    @Override
-    public int getBacklog() {
-        return backlog;
-    }
+	@Override
+	public int getBacklog() {
+		return backlog;
+	}
 
-    @Override
-    public void setBacklog(int backlog) {
-        this.backlog = backlog;
-    }
+	@Override
+	public void setBacklog(int backlog) {
+		this.backlog = backlog;
+	}
 
-    @Override
-    public int getReceiveBufferSize() {
-        return receiveBufferSize;
-    }
+	@Override
+	public int getReceiveBufferSize() {
+		return receiveBufferSize;
+	}
 
-    @Override
-    public void setReceiveBufferSize(int receiveBufferSize) {
-        this.receiveBufferSize = receiveBufferSize;
-    }
+	@Override
+	public void setReceiveBufferSize(int receiveBufferSize) {
+		this.receiveBufferSize = receiveBufferSize;
+	}
 
-    @Override
-    public boolean isReuseAddress() {
-        return reuseAddress;
-    }
+	@Override
+	public boolean isReuseAddress() {
+		return reuseAddress;
+	}
 
-    @Override
-    public void setReuseAddress(boolean reuseAddress) {
-        this.reuseAddress = reuseAddress;
-    }
+	@Override
+	public void setReuseAddress(boolean reuseAddress) {
+		this.reuseAddress = reuseAddress;
+	}
 
-    @Override
-    public void setPerformancePreferences(int connectionTime, int latency,
-            int bandwidth) {
-        // ignore
-    }
+	@Override
+	public void setPerformancePreferences(int connectionTime, int latency,
+			int bandwidth) {
+		// ignore
+	}
 }

@@ -27,30 +27,25 @@ import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
  */
-public class HttpTunnelClientChannelFactory implements
-        ClientSocketChannelFactory {
+public class HttpTunnelClientChannelFactory implements ClientSocketChannelFactory {
 
-    private final ClientSocketChannelFactory factory;
+	private final ClientSocketChannelFactory factory;
+	private final ChannelGroup realConnections;
 
-    private final ChannelGroup realConnections = new DefaultChannelGroup();
+	public HttpTunnelClientChannelFactory(ClientSocketChannelFactory factory) {
+		this.factory = factory;
 
-    public HttpTunnelClientChannelFactory(ClientSocketChannelFactory factory) {
-        if (factory == null) {
-            throw new NullPointerException("factory");
-        }
-        this.factory = factory;
-    }
+		realConnections = new DefaultChannelGroup();
+	}
 
-    @Override
-    public HttpTunnelClientChannel newChannel(ChannelPipeline pipeline) {
-        return new HttpTunnelClientChannel(this, pipeline,
-                new HttpTunnelClientChannelSink(), factory, realConnections);
-    }
+	@Override
+	public HttpTunnelClientChannel newChannel(ChannelPipeline pipeline) {
+		return new HttpTunnelClientChannel(this, pipeline, new HttpTunnelClientChannelSink(), factory, realConnections);
+	}
 
-    @Override
-    public void releaseExternalResources() {
-        realConnections.close().awaitUninterruptibly();
-        factory.releaseExternalResources();
-    }
-
+	@Override
+	public void releaseExternalResources() {
+		realConnections.close().awaitUninterruptibly();
+		factory.releaseExternalResources();
+	}
 }

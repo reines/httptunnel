@@ -34,62 +34,61 @@ import org.jboss.netty.channel.socket.ServerSocketChannelConfig;
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  */
 public class FakeServerSocketChannel extends AbstractChannel implements
-        ServerSocketChannel {
+		ServerSocketChannel {
 
-    public boolean bound;
+	public boolean bound;
 
-    public boolean connected;
+	public boolean connected;
 
-    public InetSocketAddress remoteAddress;
+	public InetSocketAddress remoteAddress;
 
-    public InetSocketAddress localAddress;
+	public InetSocketAddress localAddress;
 
-    public ServerSocketChannelConfig config =
-            new FakeServerSocketChannelConfig();
+	public ServerSocketChannelConfig config = new FakeServerSocketChannelConfig();
 
-    public FakeServerSocketChannel(ChannelFactory factory,
-            ChannelPipeline pipeline, ChannelSink sink) {
-        super(null, factory, pipeline, sink);
-    }
+	public FakeServerSocketChannel(ChannelFactory factory,
+			ChannelPipeline pipeline, ChannelSink sink) {
+		super(null, factory, pipeline, sink);
+	}
 
-    @Override
-    public ServerSocketChannelConfig getConfig() {
-        return config;
-    }
+	@Override
+	public ServerSocketChannelConfig getConfig() {
+		return config;
+	}
 
-    @Override
-    public InetSocketAddress getLocalAddress() {
-        return localAddress;
-    }
+	@Override
+	public InetSocketAddress getLocalAddress() {
+		return localAddress;
+	}
 
-    @Override
-    public InetSocketAddress getRemoteAddress() {
-        return remoteAddress;
-    }
+	@Override
+	public InetSocketAddress getRemoteAddress() {
+		return remoteAddress;
+	}
 
-    @Override
-    public boolean isBound() {
-        return bound;
-    }
+	@Override
+	public boolean isBound() {
+		return bound;
+	}
 
-    @Override
-    public boolean isConnected() {
-        return connected;
-    }
+	@Override
+	public boolean isConnected() {
+		return connected;
+	}
 
-    public FakeSocketChannel acceptNewConnection(
-            InetSocketAddress remoteAddress, ChannelSink sink) throws Exception {
-        ChannelPipeline newPipeline =
-                getConfig().getPipelineFactory().getPipeline();
-        FakeSocketChannel newChannel =
-                new FakeSocketChannel(this, getFactory(), newPipeline, sink);
-        newChannel.localAddress = localAddress;
-        newChannel.remoteAddress = remoteAddress;
-        fireChannelOpen(newChannel);
-        fireChannelBound(newChannel, newChannel.localAddress);
-        fireChannelConnected(this, newChannel.remoteAddress);
+	public FakeSocketChannel acceptNewConnection(
+			InetSocketAddress remoteAddress, ChannelSink sink) throws Exception {
+		ChannelPipeline newPipeline = getConfig().getPipelineFactory()
+				.getPipeline();
+		FakeSocketChannel newChannel = new FakeSocketChannel(this,
+				getFactory(), newPipeline, sink);
+		newChannel.localAddress = localAddress;
+		newChannel.remoteAddress = remoteAddress;
+		fireChannelOpen(newChannel);
+		fireChannelBound(newChannel, newChannel.localAddress);
+		fireChannelConnected(this, newChannel.remoteAddress);
 
-        return newChannel;
-    }
+		return newChannel;
+	}
 
 }

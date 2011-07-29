@@ -33,181 +33,180 @@ import org.jboss.netty.util.internal.ConversionUtil;
  */
 public class FakeChannelConfig implements SocketChannelConfig {
 
-    private int receiveBufferSize = 1024;
+	private int receiveBufferSize = 1024;
 
-    private int sendBufferSize = 1024;
+	private int sendBufferSize = 1024;
 
-    private int soLinger = 500;
+	private int soLinger = 500;
 
-    private int trafficClass = 0;
+	private int trafficClass = 0;
 
-    private boolean keepAlive = true;
+	private boolean keepAlive = true;
 
-    private boolean reuseAddress = true;
+	private boolean reuseAddress = true;
 
-    private boolean tcpNoDelay = false;
+	private boolean tcpNoDelay = false;
 
-    private ChannelBufferFactory bufferFactory = new HeapChannelBufferFactory();
+	private ChannelBufferFactory bufferFactory = new HeapChannelBufferFactory();
 
-    private int connectTimeout = 5000;
+	private int connectTimeout = 5000;
 
-    private ChannelPipelineFactory pipelineFactory =
-            new ChannelPipelineFactory() {
-                @Override
-                public ChannelPipeline getPipeline() throws Exception {
-                    return Channels.pipeline();
-                }
-            };
+	private ChannelPipelineFactory pipelineFactory = new ChannelPipelineFactory() {
+		@Override
+		public ChannelPipeline getPipeline() throws Exception {
+			return Channels.pipeline();
+		}
+	};
 
-    private int writeTimeout = 3000;
+	private int writeTimeout = 3000;
 
-    @Override
-    public int getReceiveBufferSize() {
-        return receiveBufferSize;
-    }
+	@Override
+	public int getReceiveBufferSize() {
+		return receiveBufferSize;
+	}
 
-    @Override
-    public void setReceiveBufferSize(int receiveBufferSize) {
-        this.receiveBufferSize = receiveBufferSize;
-    }
+	@Override
+	public void setReceiveBufferSize(int receiveBufferSize) {
+		this.receiveBufferSize = receiveBufferSize;
+	}
 
-    @Override
-    public int getSendBufferSize() {
-        return sendBufferSize;
-    }
+	@Override
+	public int getSendBufferSize() {
+		return sendBufferSize;
+	}
 
-    @Override
-    public void setSendBufferSize(int sendBufferSize) {
-        this.sendBufferSize = sendBufferSize;
-    }
+	@Override
+	public void setSendBufferSize(int sendBufferSize) {
+		this.sendBufferSize = sendBufferSize;
+	}
 
-    @Override
-    public int getSoLinger() {
-        return soLinger;
-    }
+	@Override
+	public int getSoLinger() {
+		return soLinger;
+	}
 
-    @Override
-    public void setSoLinger(int soLinger) {
-        this.soLinger = soLinger;
-    }
+	@Override
+	public void setSoLinger(int soLinger) {
+		this.soLinger = soLinger;
+	}
 
-    @Override
-    public int getTrafficClass() {
-        return trafficClass;
-    }
+	@Override
+	public int getTrafficClass() {
+		return trafficClass;
+	}
 
-    @Override
-    public void setTrafficClass(int trafficClass) {
-        this.trafficClass = trafficClass;
-    }
+	@Override
+	public void setTrafficClass(int trafficClass) {
+		this.trafficClass = trafficClass;
+	}
 
-    @Override
-    public boolean isKeepAlive() {
-        return keepAlive;
-    }
+	@Override
+	public boolean isKeepAlive() {
+		return keepAlive;
+	}
 
-    @Override
-    public void setKeepAlive(boolean keepAlive) {
-        this.keepAlive = keepAlive;
-    }
+	@Override
+	public void setKeepAlive(boolean keepAlive) {
+		this.keepAlive = keepAlive;
+	}
 
-    @Override
-    public boolean isReuseAddress() {
-        return reuseAddress;
-    }
+	@Override
+	public boolean isReuseAddress() {
+		return reuseAddress;
+	}
 
-    @Override
-    public void setReuseAddress(boolean reuseAddress) {
-        this.reuseAddress = reuseAddress;
-    }
+	@Override
+	public void setReuseAddress(boolean reuseAddress) {
+		this.reuseAddress = reuseAddress;
+	}
 
-    @Override
-    public boolean isTcpNoDelay() {
-        return tcpNoDelay;
-    }
+	@Override
+	public boolean isTcpNoDelay() {
+		return tcpNoDelay;
+	}
 
-    @Override
-    public void setTcpNoDelay(boolean tcpNoDelay) {
-        this.tcpNoDelay = tcpNoDelay;
-    }
+	@Override
+	public void setTcpNoDelay(boolean tcpNoDelay) {
+		this.tcpNoDelay = tcpNoDelay;
+	}
 
-    @Override
-    public void setPerformancePreferences(int connectionTime, int latency,
-            int bandwidth) {
-        // do nothing
-    }
+	@Override
+	public void setPerformancePreferences(int connectionTime, int latency,
+			int bandwidth) {
+		// do nothing
+	}
 
-    @Override
-    public ChannelBufferFactory getBufferFactory() {
-        return bufferFactory;
-    }
+	@Override
+	public ChannelBufferFactory getBufferFactory() {
+		return bufferFactory;
+	}
 
-    @Override
-    public void setBufferFactory(ChannelBufferFactory bufferFactory) {
-        this.bufferFactory = bufferFactory;
-    }
+	@Override
+	public void setBufferFactory(ChannelBufferFactory bufferFactory) {
+		this.bufferFactory = bufferFactory;
+	}
 
-    @Override
-    public int getConnectTimeoutMillis() {
-        return connectTimeout;
-    }
+	@Override
+	public int getConnectTimeoutMillis() {
+		return connectTimeout;
+	}
 
-    @Override
-    public void setConnectTimeoutMillis(int connectTimeoutMillis) {
-        connectTimeout = connectTimeoutMillis;
-    }
+	@Override
+	public void setConnectTimeoutMillis(int connectTimeoutMillis) {
+		connectTimeout = connectTimeoutMillis;
+	}
 
-    @Override
-    public ChannelPipelineFactory getPipelineFactory() {
-        return pipelineFactory;
-    }
+	@Override
+	public ChannelPipelineFactory getPipelineFactory() {
+		return pipelineFactory;
+	}
 
-    @Override
-    public void setPipelineFactory(ChannelPipelineFactory pipelineFactory) {
-        this.pipelineFactory = pipelineFactory;
-    }
+	@Override
+	public void setPipelineFactory(ChannelPipelineFactory pipelineFactory) {
+		this.pipelineFactory = pipelineFactory;
+	}
 
-    public int getWriteTimeoutMillis() {
-        return writeTimeout;
-    }
+	public int getWriteTimeoutMillis() {
+		return writeTimeout;
+	}
 
-    public void setWriteTimeoutMillis(int writeTimeoutMillis) {
-        writeTimeout = writeTimeoutMillis;
-    }
+	public void setWriteTimeoutMillis(int writeTimeoutMillis) {
+		writeTimeout = writeTimeoutMillis;
+	}
 
-    @Override
-    public boolean setOption(String key, Object value) {
-        if (key.equals("pipelineFactory")) {
-            setPipelineFactory((ChannelPipelineFactory) value);
-        } else if (key.equals("connectTimeoutMillis")) {
-            setConnectTimeoutMillis(ConversionUtil.toInt(value));
-        } else if (key.equals("bufferFactory")) {
-            setBufferFactory((ChannelBufferFactory) value);
-        } else if (key.equals("receiveBufferSize")) {
-            setReceiveBufferSize(ConversionUtil.toInt(value));
-        } else if (key.equals("sendBufferSize")) {
-            setSendBufferSize(ConversionUtil.toInt(value));
-        } else if (key.equals("tcpNoDelay")) {
-            setTcpNoDelay(ConversionUtil.toBoolean(value));
-        } else if (key.equals("keepAlive")) {
-            setKeepAlive(ConversionUtil.toBoolean(value));
-        } else if (key.equals("reuseAddress")) {
-            setReuseAddress(ConversionUtil.toBoolean(value));
-        } else if (key.equals("soLinger")) {
-            setSoLinger(ConversionUtil.toInt(value));
-        } else if (key.equals("trafficClass")) {
-            setTrafficClass(ConversionUtil.toInt(value));
-        } else {
-            return false;
-        }
-        return true;
-    }
+	@Override
+	public boolean setOption(String key, Object value) {
+		if (key.equals("pipelineFactory")) {
+			setPipelineFactory((ChannelPipelineFactory) value);
+		} else if (key.equals("connectTimeoutMillis")) {
+			setConnectTimeoutMillis(ConversionUtil.toInt(value));
+		} else if (key.equals("bufferFactory")) {
+			setBufferFactory((ChannelBufferFactory) value);
+		} else if (key.equals("receiveBufferSize")) {
+			setReceiveBufferSize(ConversionUtil.toInt(value));
+		} else if (key.equals("sendBufferSize")) {
+			setSendBufferSize(ConversionUtil.toInt(value));
+		} else if (key.equals("tcpNoDelay")) {
+			setTcpNoDelay(ConversionUtil.toBoolean(value));
+		} else if (key.equals("keepAlive")) {
+			setKeepAlive(ConversionUtil.toBoolean(value));
+		} else if (key.equals("reuseAddress")) {
+			setReuseAddress(ConversionUtil.toBoolean(value));
+		} else if (key.equals("soLinger")) {
+			setSoLinger(ConversionUtil.toInt(value));
+		} else if (key.equals("trafficClass")) {
+			setTrafficClass(ConversionUtil.toInt(value));
+		} else {
+			return false;
+		}
+		return true;
+	}
 
-    @Override
-    public void setOptions(Map<String, Object> options) {
-        for (Entry<String, Object> e: options.entrySet()) {
-            setOption(e.getKey(), e.getValue());
-        }
-    }
+	@Override
+	public void setOptions(Map<String, Object> options) {
+		for (Entry<String, Object> e : options.entrySet()) {
+			setOption(e.getKey(), e.getValue());
+		}
+	}
 
 }

@@ -22,7 +22,6 @@ import java.util.List;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.socket.http.client.HttpTunnelClientWorkerOwner;
 
 /**
  * @author The Netty Project (netty-dev@lists.jboss.org)
@@ -30,42 +29,46 @@ import org.jboss.netty.channel.socket.http.client.HttpTunnelClientWorkerOwner;
  */
 public class MockChannelStateListener implements HttpTunnelClientWorkerOwner {
 
-    public boolean fullyEstablished = false;
+	public boolean fullyEstablished = false;
 
-    public List<ChannelBuffer> messages = new ArrayList<ChannelBuffer>();
+	public List<ChannelBuffer> messages = new ArrayList<ChannelBuffer>();
 
-    public String tunnelId = null;
+	public String tunnelId = null;
 
-    public String serverHostName = null;
+	public String serverHostName = null;
 
-    @Override
-    public void fullyEstablished() {
-        fullyEstablished = true;
-    }
+	@Override
+	public void fullyEstablished() {
+		fullyEstablished = true;
+	}
 
-    @Override
-    public void onConnectRequest(ChannelFuture connectFuture,
-            InetSocketAddress remoteAddress) {
-        // not relevant for test
-    }
+	@Override
+	public void onConnectRequest(ChannelFuture connectFuture, InetSocketAddress remoteAddress) {
+		// not relevant for test
+	}
 
-    @Override
-    public void onMessageReceived(ChannelBuffer content) {
-        messages.add(content);
-    }
+	@Override
+	public void onMessageReceived(ChannelBuffer content) {
+		messages.add(content);
+	}
 
-    @Override
-    public void onTunnelOpened(String tunnelId) {
-        this.tunnelId = tunnelId;
-    }
+	@Override
+	public void onTunnelOpened(String tunnelId) {
+		this.tunnelId = tunnelId;
+	}
 
-    @Override
-    public String getServerHostName() {
-        return serverHostName;
-    }
+	@Override
+	public String getServerHostName() {
+		return serverHostName;
+	}
 
-    @Override
-    public void writeComplete(long amount) {
-        // not relevant for test
-    }
+	@Override
+	public void writeComplete(long amount) {
+		// not relevant for test
+	}
+
+	@Override
+	public void onDisconnectRequest(ChannelFuture connectFuture) {
+		// not relevant for test
+	}
 }

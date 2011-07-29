@@ -1,5 +1,6 @@
 package org.jboss.netty.channel.socket.http;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
@@ -21,176 +22,220 @@ import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.codec.string.StringDecoder;
 import org.jboss.netty.handler.codec.string.StringEncoder;
-import org.junit.Ignore;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 public class HttpTunnelEventTest {
 
-    public static final int TIMEOUT = 2;
+	public static final int TIMEOUT = 2;
 
-    private Channel createServerChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory) {
-        // TCP socket factory
-        ServerSocketChannelFactory socketFactory =
-                new NioServerSocketChannelFactory(Executors.newCachedThreadPool(),
-                        Executors.newCachedThreadPool());
+	private OpenCloseIncomingChannelHandler serverHandler;
+	private OpenCloseOutgoingChannelHandler clientHandler;
 
-        // HTTP socket factory
-        socketFactory = new HttpTunnelServerChannelFactory(socketFactory);
+	private Channel serverChannel;
+	private Channel clientChannel;
+	private Channel acceptedChannel;
 
-        final ServerBootstrap bootstrap = new ServerBootstrap(socketFactory);
-        bootstrap.setPipelineFactory(pipelineFactory);
+	private Channel createServerChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory) {
+		// TCP socket factory
+		ServerSocketChannelFactory socketFactory = new NioServerSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
 
-        bootstrap.setOption("child.tcpNoDelay", true);
-        bootstrap.setOption("reuseAddress", true);
+		// HTTP socket factory
+		socketFactory = new HttpTunnelServerChannelFactory(socketFactory);
 
-        return bootstrap.bind(addr);
-    }
+		final ServerBootstrap bootstrap = new ServerBootstrap(socketFactory);
+		bootstrap.setPipelineFactory(pipelineFactory);
 
-    private Channel createClientChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory) {
-        // TCP socket factory
-        ClientSocketChannelFactory socketFactory =
-                new NioClientSocketChannelFactory(Executors.newCachedThreadPool(),
-                        Executors.newCachedThreadPool());
+		bootstrap.setOption("child.tcpNoDelay", true);
+		bootstrap.setOption("reuseAddress", true);
 
-        // HTTP socket factory
-        socketFactory = new HttpTunnelClientChannelFactory(socketFactory);
+		return bootstrap.bind(addr);
+	}
 
-        final ClientBootstrap bootstrap = new ClientBootstrap(socketFactory);
-        bootstrap.setPipelineFactory(pipelineFactory);
+	private Channel createClientChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory) {
+		// TCP socket factory
+		ClientSocketChannelFactory socketFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
 
-        bootstrap.setOption("tcpNoDelay", true);
+		// HTTP socket factory
+		socketFactory = new HttpTunnelClientChannelFactory(socketFactory);
 
-        final ChannelFuture future = bootstrap.connect(addr);
+		final ClientBootstrap bootstrap = new ClientBootstrap(socketFactory);
+		bootstrap.setPipelineFactory(pipelineFactory);
 
-        try { future.await(TIMEOUT, TimeUnit.SECONDS); } catch (InterruptedException e) { }
+		bootstrap.setOption("tcpNoDelay", true);
 
-        // If we managed to connect then set the channel and type
-        if (future.isSuccess())
-            return future.getChannel();
+		final ChannelFuture future = bootstrap.connect(addr);
 
-        // Otherwise cancel the attempt and give up
-        future.cancel();
-        return null;
-    }
+		try { future.await(TIMEOUT, TimeUnit.SECONDS); } catch (InterruptedException e) { }
 
-    /**
-     * Here we close the client first, which should close the client channel and the server accepted channel,
-     * but not the server channel itself.
-     */
-    @Test
-    public void testOpenCloseClientChannel() throws InterruptedException {
-        final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
+		// If we managed to connect then set the channel and type
+		if (future.isSuccess())
+			return future.getChannel();
 
-        final OpenCloseIncomingChannelHandler serverHandler = new OpenCloseIncomingChannelHandler();
-        final Channel server = this.createServerChannel(addr, new ChannelPipelineFactory() {
-            @Override
-            public ChannelPipeline getPipeline() throws Exception {
-                return Channels.pipeline(new StringEncoder(), serverHandler, new StringDecoder());
-            }
-        });
+		// Otherwise cancel the attempt and give up
+		future.cancel();
+		return null;
+	}
 
-        // Server should be open and bound
-        assertTrue("server isn't open after connect", server.isOpen());
-        assertTrue("server isn't bound after connect", server.isBound());
+	@Before
+	public void setUp() throws InterruptedException {
+		final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
 
-        final OpenCloseOutgoingChannelHandler clientHandler = new OpenCloseOutgoingChannelHandler();
-        final Channel client = this.createClientChannel(addr, new ChannelPipelineFactory() {
-            @Override
-            public ChannelPipeline getPipeline() throws Exception {
-                return Channels.pipeline(new StringEncoder(), clientHandler, new StringDecoder());
-            }
-        });
+		serverHandler = new OpenCloseIncomingChannelHandler();
+		serverChannel = this.createServerChannel(addr, new ChannelPipelineFactory() {
+			@Override
+			public ChannelPipeline getPipeline() throws Exception {
+				return Channels.pipeline(new StringEncoder(), new StringDecoder(), serverHandler);
+			}
+		});
 
-        // Check we actually managed to connect
-        assertTrue(client != null);
+		// Server should be open and bound
+		assertTrue("server isn't open after connect", serverChannel.isOpen());
+		assertTrue("server isn't bound after connect", serverChannel.isBound());
 
-        // Client should be open, bound, and connected
-        assertTrue("client isn't open after connect", client.isOpen());
-        assertTrue("client isn't bound after connect", client.isBound());
-        assertTrue("client isn't connected after connect", client.isConnected());
+		clientHandler = new OpenCloseOutgoingChannelHandler();
+		clientChannel = this.createClientChannel(addr, new ChannelPipelineFactory() {
+			@Override
+			public ChannelPipeline getPipeline() throws Exception {
+				return Channels.pipeline(new StringEncoder(), new StringDecoder(), clientHandler);
+			}
+		});
 
-        // Send a test message
-        client.write("hello world").await();
+		// Check we actually managed to connect
+		assertTrue("failed to connect", clientChannel != null);
 
-        // Close the channel
-        client.close().await();
+		acceptedChannel = serverHandler.getChannel();
+		assertTrue("no accepted channel found, the channelOpen event is most likely missing", acceptedChannel != null);
 
-        // Client shouldn't be open, bound, or connected
-        assertTrue("client is connected after close", !client.isConnected());
-        assertTrue("client is bound after close", !client.isBound());
-        assertTrue("client is open after close", !client.isOpen());
+		// Client channel should be open, bound, and connected
+		assertTrue("client isn't open after connect", clientChannel.isOpen());
+		assertTrue("client isn't bound after connect", clientChannel.isBound());
+		assertTrue("client isn't connected after connect", clientChannel.isConnected());
 
-        // Check we received the correct client events
-        clientHandler.assertSatisfied(TIMEOUT);
+		// Server channel should be open and bound, but *maybe* not yet connected
+		assertTrue("server isn't open after connect", acceptedChannel.isOpen());
+		assertTrue("server isn't bound after connect", acceptedChannel.isBound());
+	}
 
-        // Check we received the correct server events
-        serverHandler.assertSatisfied(TIMEOUT);
+	@After
+	public void tearDown() {
+		if (serverChannel != null && serverChannel.isOpen())
+			serverChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
 
-        // Close the server
-        server.close().await();
+		if (clientChannel != null && clientChannel.isOpen())
+			clientChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
 
-        // Server shouldn't be open or bound
-        assertTrue("server is bound after close", !server.isBound());
-        assertTrue("server is open after close", !server.isOpen());
-    }
+		if (acceptedChannel != null && acceptedChannel.isOpen())
+			acceptedChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
+	}
 
-    /**
-     * Here we close the server first, which should close the server channel itself, the server accepted channel,
-     * and the client channel.
-     */
-    @Test @Ignore
-    public void testOpenCloseServerChannel() throws InterruptedException {
-        final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
+	/**
+	 * Here we close the client first, which should close the client channel and
+	 * the server accepted channel, but not the server channel itself.
+	 */
+	@Test
+	public void testOpenCloseClientChannel() throws InterruptedException {
+		// Send a test message
+		final String message = "hello world";
+		assertTrue("failed to write message", clientChannel.write(message).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
 
-        final OpenCloseIncomingChannelHandler serverHandler = new OpenCloseIncomingChannelHandler();
-        final Channel server = this.createServerChannel(addr, new ChannelPipelineFactory() {
-            @Override
-            public ChannelPipeline getPipeline() throws Exception {
-                return Channels.pipeline(new StringEncoder(), serverHandler, new StringDecoder());
-            }
-        });
+		// Close the channel
+		assertTrue("client failed to close", clientChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
 
-        // Server should be open and bound
-        assertTrue("server isn't open after connect", server.isOpen());
-        assertTrue("server isn't bound after connect", server.isBound());
+		// Check we received the correct client events
+		clientHandler.assertSatisfied(TIMEOUT);
 
-        final OpenCloseOutgoingChannelHandler clientHandler = new OpenCloseOutgoingChannelHandler();
-        final Channel client = this.createClientChannel(addr, new ChannelPipelineFactory() {
-            @Override
-            public ChannelPipeline getPipeline() throws Exception {
-                return Channels.pipeline(new StringEncoder(), clientHandler, new StringDecoder());
-            }
-        });
+		// Check we received the correct server events
+		serverHandler.assertSatisfied(TIMEOUT);
 
-        // Check we actually managed to connect
-        assertTrue(client != null);
+		assertEquals("the received message doesn't match the sent message", message, serverHandler.getMessageReceived());
 
-        // Client should be open, bound, and connected
-        assertTrue("client isn't open after connect", client.isOpen());
-        assertTrue("client isn't bound after connect", client.isBound());
-        assertTrue("client isn't connected after connect", client.isConnected());
+		// Client channel shouldn't be open, bound, or connected
+		assertTrue("client is connected after close", !clientChannel.isConnected());
+		assertTrue("client is bound after close", !clientChannel.isBound());
+		assertTrue("client is open after close", !clientChannel.isOpen());
 
-        // Send a test message
-        client.write("hello world").await();
+		// Accepted channel shouldn't be open, bound, or connected
+		assertTrue("accepted is connected after close", !acceptedChannel.isConnected());
+		assertTrue("accepted is bound after close", !acceptedChannel.isBound());
+		assertTrue("accepted is open after close", !acceptedChannel.isOpen());
 
-        // Close the server
-        server.close().await();
+		// Server should be open and bound
+		assertTrue("server isn't bound", serverChannel.isBound());
+		assertTrue("server isn't open", serverChannel.isOpen());
+	}
 
-        // Server shouldn't be open or bound
-        assertTrue("server is bound after close", !server.isBound());
-        assertTrue("server is open after close", !server.isOpen());
+	/**
+	 * Here we close the server first, which should close the server channel
+	 * itself, the server accepted channel, and the client channel.
+	 */
+	@Test
+	public void testOpenCloseServerChannel() throws InterruptedException {
+		// Send a test message
+		final String message = "hello world";
+		assertTrue("failed to write message", clientChannel.write(message).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
 
-        // Check we received the correct server events
-        serverHandler.assertSatisfied(TIMEOUT);
+		// Give a second for the message to reach the server before we kill off the server
+		Thread.sleep(1000);
 
-        // Check we received the correct client events
-        clientHandler.assertSatisfied(TIMEOUT);
+		// Close the channel
+		assertTrue("server failed to close", serverChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
 
-        // Closing the server should have closed the client automatically
+		assertEquals("the received message doesn't match the sent message", message, serverHandler.getMessageReceived());
 
-        // Client shouldn't be open, bound, or connected
-        assertTrue("client is connected after close", !client.isConnected());
-        assertTrue("client is bound after close", !client.isBound());
-        assertTrue("client is open after close", !client.isOpen());
-    }
+		// Client channel shouldn't be open, bound, or connected
+		assertTrue("client isn't connected after close", clientChannel.isConnected());
+		assertTrue("client isn't bound after close", clientChannel.isBound());
+		assertTrue("client isn't open after close", clientChannel.isOpen());
+
+		// Accepted channel shouldn't be open, bound, or connected
+		assertTrue("accepted isn't connected after close", acceptedChannel.isConnected());
+		assertTrue("accepted isn't bound after close", acceptedChannel.isBound());
+		assertTrue("accepted isn't open after close", acceptedChannel.isOpen());
+
+		// Server shouldn't be open or bound
+		assertTrue("server is connected after close", !serverChannel.isConnected());
+		assertTrue("server is bound after close", !serverChannel.isBound());
+		assertTrue("server is open after close", !serverChannel.isOpen());
+	}
+
+	/**
+	 * Here we close the accepted channel first, which should close the server
+	 * accepted channel and the client channel, but not the server itself.
+	 */
+	@Test
+	public void testOpenCloseAcceptedChannel() throws InterruptedException {
+		// Send a test message
+		final String message = "hello world";
+		assertTrue("failed to write message", clientChannel.write(message).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
+
+		// Give a second for the message to reach the server before we kill off the server
+		Thread.sleep(1000);
+
+		// Close the channel
+		assertTrue("client failed to close", acceptedChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
+
+		// Check we received the correct client events
+		clientHandler.assertSatisfied(TIMEOUT);
+
+		// Check we received the correct server events
+		serverHandler.assertSatisfied(TIMEOUT);
+
+		assertEquals("the received message doesn't match the sent message", message, serverHandler.getMessageReceived());
+
+		// Client channel shouldn't be open, bound, or connected
+		assertTrue("client is connected after close", !clientChannel.isConnected());
+		assertTrue("client is bound after close", !clientChannel.isBound());
+		assertTrue("client is open after close", !clientChannel.isOpen());
+
+		// Accepted channel shouldn't be open, bound, or connected
+		assertTrue("accepted is connected after close", !acceptedChannel.isConnected());
+		assertTrue("accepted is bound after close", !acceptedChannel.isBound());
+		assertTrue("accepted is open after close", !acceptedChannel.isOpen());
+
+		// Server should be open and bound
+		assertTrue("server isn't bound", serverChannel.isBound());
+		assertTrue("server isn't open", serverChannel.isOpen());
+	}
 }

@@ -26,18 +26,18 @@ import org.jboss.netty.channel.ChannelUpstreamHandler;
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  */
 public class NullChannelHandler implements ChannelUpstreamHandler,
-        ChannelDownstreamHandler {
+		ChannelDownstreamHandler {
 
-    @Override
-    public void handleUpstream(ChannelHandlerContext ctx, ChannelEvent e)
-            throws Exception {
-        ctx.sendUpstream(e);
-    }
+	@Override
+	public void handleUpstream(ChannelHandlerContext ctx, ChannelEvent e)
+			throws Exception {
+		ctx.sendUpstream(e);
+	}
 
-    @Override
-    public void handleDownstream(ChannelHandlerContext ctx, ChannelEvent e)
-            throws Exception {
-        ctx.sendDownstream(e);
-    }
+	@Override
+	public void handleDownstream(ChannelHandlerContext ctx, ChannelEvent e)
+			throws Exception {
+		ctx.sendDownstream(e);
+	}
 
 }

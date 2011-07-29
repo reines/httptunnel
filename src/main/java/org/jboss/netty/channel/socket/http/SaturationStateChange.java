@@ -16,14 +16,15 @@
 package org.jboss.netty.channel.socket.http;
 
 /**
- * Represents the state change of a chanel in response in the amount of pending data to be
- * sent - either no change occurs, the channel becomes desaturated (indicating that writing
- * can safely commence) or it becomes saturated (indicating that writing should cease).
+ * Represents the state change of a chanel in response in the amount of pending
+ * data to be sent - either no change occurs, the channel becomes desaturated
+ * (indicating that writing can safely commence) or it becomes saturated
+ * (indicating that writing should cease).
  * 
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
  */
 public enum SaturationStateChange {
-    NO_CHANGE, DESATURATED, SATURATED
+	NO_CHANGE, DESATURATED, SATURATED
 }

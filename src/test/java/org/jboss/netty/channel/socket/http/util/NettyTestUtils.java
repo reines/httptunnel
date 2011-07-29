@@ -45,141 +45,140 @@ import org.jboss.netty.channel.UpstreamMessageEvent;
  */
 public class NettyTestUtils {
 
-    public static ByteBuffer convertReadable(ChannelBuffer b) {
-        int startIndex = b.readerIndex();
-        ByteBuffer converted = ByteBuffer.allocate(b.readableBytes());
-        b.readBytes(converted);
-        b.readerIndex(startIndex);
-        converted.flip();
-        return converted;
-    }
+	public static ByteBuffer convertReadable(ChannelBuffer b) {
+		int startIndex = b.readerIndex();
+		ByteBuffer converted = ByteBuffer.allocate(b.readableBytes());
+		b.readBytes(converted);
+		b.readerIndex(startIndex);
+		converted.flip();
+		return converted;
+	}
 
-    public static void assertEquals(ChannelBuffer expected, ChannelBuffer actual) {
-        if (expected.readableBytes() != actual.readableBytes()) {
-            Assert.failNotEquals(
-                    "channel buffers have differing readable sizes",
-                    expected.readableBytes(), actual.readableBytes());
-        }
+	public static void assertEquals(ChannelBuffer expected, ChannelBuffer actual) {
+		if (expected.readableBytes() != actual.readableBytes()) {
+			Assert.failNotEquals(
+					"channel buffers have differing readable sizes",
+					expected.readableBytes(), actual.readableBytes());
+		}
 
-        int startPositionExpected = expected.readerIndex();
-        int startPositionActual = actual.readerIndex();
-        int position = 0;
-        while (expected.readable()) {
-            byte expectedByte = expected.readByte();
-            byte actualByte = actual.readByte();
-            if (expectedByte != actualByte) {
-                Assert.failNotEquals("channel buffers differ at position " +
-                        position, expectedByte, actualByte);
-            }
+		int startPositionExpected = expected.readerIndex();
+		int startPositionActual = actual.readerIndex();
+		int position = 0;
+		while (expected.readable()) {
+			byte expectedByte = expected.readByte();
+			byte actualByte = actual.readByte();
+			if (expectedByte != actualByte) {
+				Assert.failNotEquals("channel buffers differ at position "
+						+ position, expectedByte, actualByte);
+			}
 
-            position ++;
-        }
+			position++;
+		}
 
-        expected.readerIndex(startPositionExpected);
-        actual.readerIndex(startPositionActual);
-    }
+		expected.readerIndex(startPositionExpected);
+		actual.readerIndex(startPositionActual);
+	}
 
-    public static boolean checkEquals(ChannelBuffer expected,
-            ChannelBuffer actual) {
-        if (expected.readableBytes() != actual.readableBytes()) {
-            return false;
-        }
+	public static boolean checkEquals(ChannelBuffer expected,
+			ChannelBuffer actual) {
+		if (expected.readableBytes() != actual.readableBytes()) {
+			return false;
+		}
 
-        int position = 0;
-        while (expected.readable()) {
-            byte expectedByte = expected.readByte();
-            byte actualByte = actual.readByte();
-            if (expectedByte != actualByte) {
-                return false;
-            }
+		int position = 0;
+		while (expected.readable()) {
+			byte expectedByte = expected.readByte();
+			byte actualByte = actual.readByte();
+			if (expectedByte != actualByte) {
+				return false;
+			}
 
-            position ++;
-        }
+			position++;
+		}
 
-        return true;
-    }
+		return true;
+	}
 
-    public static List<ChannelBuffer> splitIntoChunks(int chunkSize,
-            ChannelBuffer... buffers) {
-        LinkedList<ChannelBuffer> chunks = new LinkedList<ChannelBuffer>();
+	public static List<ChannelBuffer> splitIntoChunks(int chunkSize,
+			ChannelBuffer... buffers) {
+		LinkedList<ChannelBuffer> chunks = new LinkedList<ChannelBuffer>();
 
-        ArrayList<ChannelBuffer> sourceBuffers = new ArrayList<ChannelBuffer>();
-        Collections.addAll(sourceBuffers, buffers);
-        Iterator<ChannelBuffer> sourceIter = sourceBuffers.iterator();
-        ChannelBuffer chunk = ChannelBuffers.buffer(chunkSize);
-        while (sourceIter.hasNext()) {
-            ChannelBuffer source = sourceIter.next();
+		ArrayList<ChannelBuffer> sourceBuffers = new ArrayList<ChannelBuffer>();
+		Collections.addAll(sourceBuffers, buffers);
+		Iterator<ChannelBuffer> sourceIter = sourceBuffers.iterator();
+		ChannelBuffer chunk = ChannelBuffers.buffer(chunkSize);
+		while (sourceIter.hasNext()) {
+			ChannelBuffer source = sourceIter.next();
 
-            int index = source.readerIndex();
-            while (source.writerIndex() > index) {
-                int fragmentSize =
-                        Math.min(source.writerIndex() - index,
-                                chunk.writableBytes());
-                chunk.writeBytes(source, index, fragmentSize);
-                if (!chunk.writable()) {
-                    chunks.add(chunk);
-                    chunk = ChannelBuffers.buffer(chunkSize);
-                }
-                index += fragmentSize;
-            }
-        }
+			int index = source.readerIndex();
+			while (source.writerIndex() > index) {
+				int fragmentSize = Math.min(source.writerIndex() - index,
+						chunk.writableBytes());
+				chunk.writeBytes(source, index, fragmentSize);
+				if (!chunk.writable()) {
+					chunks.add(chunk);
+					chunk = ChannelBuffers.buffer(chunkSize);
+				}
+				index += fragmentSize;
+			}
+		}
 
-        if (chunk.readable()) {
-            chunks.add(chunk);
-        }
+		if (chunk.readable()) {
+			chunks.add(chunk);
+		}
 
-        return chunks;
-    }
+		return chunks;
+	}
 
-    public static ChannelBuffer createData(long containedNumber) {
-        ChannelBuffer data = ChannelBuffers.dynamicBuffer();
-        data.writeLong(containedNumber);
-        return data;
-    }
+	public static ChannelBuffer createData(long containedNumber) {
+		ChannelBuffer data = ChannelBuffers.dynamicBuffer();
+		data.writeLong(containedNumber);
+		return data;
+	}
 
-    public static void checkIsUpstreamMessageEventContainingData(
-            ChannelEvent event, ChannelBuffer expectedData) {
-        ChannelBuffer data =
-                checkIsUpstreamMessageEvent(event, ChannelBuffer.class);
-        assertEquals(expectedData, data);
-    }
+	public static void checkIsUpstreamMessageEventContainingData(
+			ChannelEvent event, ChannelBuffer expectedData) {
+		ChannelBuffer data = checkIsUpstreamMessageEvent(event,
+				ChannelBuffer.class);
+		assertEquals(expectedData, data);
+	}
 
-    public static <T> T checkIsUpstreamMessageEvent(ChannelEvent event,
-            Class<T> expectedMessageType) {
-        assertTrue(event instanceof UpstreamMessageEvent);
-        UpstreamMessageEvent messageEvent = (UpstreamMessageEvent) event;
-        assertTrue(expectedMessageType.isInstance(messageEvent.getMessage()));
-        return expectedMessageType.cast(messageEvent.getMessage());
-    }
+	public static <T> T checkIsUpstreamMessageEvent(ChannelEvent event,
+			Class<T> expectedMessageType) {
+		assertTrue(event instanceof UpstreamMessageEvent);
+		UpstreamMessageEvent messageEvent = (UpstreamMessageEvent) event;
+		assertTrue(expectedMessageType.isInstance(messageEvent.getMessage()));
+		return expectedMessageType.cast(messageEvent.getMessage());
+	}
 
-    public static <T> T checkIsDownstreamMessageEvent(ChannelEvent event,
-            Class<T> expectedMessageType) {
-        assertTrue(event instanceof DownstreamMessageEvent);
-        DownstreamMessageEvent messageEvent = (DownstreamMessageEvent) event;
-        assertTrue(expectedMessageType.isInstance(messageEvent.getMessage()));
-        return expectedMessageType.cast(messageEvent.getMessage());
-    }
+	public static <T> T checkIsDownstreamMessageEvent(ChannelEvent event,
+			Class<T> expectedMessageType) {
+		assertTrue(event instanceof DownstreamMessageEvent);
+		DownstreamMessageEvent messageEvent = (DownstreamMessageEvent) event;
+		assertTrue(expectedMessageType.isInstance(messageEvent.getMessage()));
+		return expectedMessageType.cast(messageEvent.getMessage());
+	}
 
-    public static InetSocketAddress createAddress(byte[] addr, int port) {
-        try {
-            return new InetSocketAddress(InetAddress.getByAddress(addr), port);
-        } catch (UnknownHostException e) {
-            throw new RuntimeException("Bad address in test");
-        }
-    }
+	public static InetSocketAddress createAddress(byte[] addr, int port) {
+		try {
+			return new InetSocketAddress(InetAddress.getByAddress(addr), port);
+		} catch (UnknownHostException e) {
+			throw new RuntimeException("Bad address in test");
+		}
+	}
 
-    public static Throwable checkIsExceptionEvent(ChannelEvent ev) {
-        assertTrue(ev instanceof ExceptionEvent);
-        ExceptionEvent exceptionEv = (ExceptionEvent) ev;
-        return exceptionEv.getCause();
-    }
+	public static Throwable checkIsExceptionEvent(ChannelEvent ev) {
+		assertTrue(ev instanceof ExceptionEvent);
+		ExceptionEvent exceptionEv = (ExceptionEvent) ev;
+		return exceptionEv.getCause();
+	}
 
-    public static ChannelStateEvent checkIsStateEvent(ChannelEvent event,
-            ChannelState expectedState, Object expectedValue) {
-        assertTrue(event instanceof ChannelStateEvent);
-        ChannelStateEvent stateEvent = (ChannelStateEvent) event;
-        Assert.assertEquals(expectedState, stateEvent.getState());
-        Assert.assertEquals(expectedValue, stateEvent.getValue());
-        return stateEvent;
-    }
+	public static ChannelStateEvent checkIsStateEvent(ChannelEvent event,
+			ChannelState expectedState, Object expectedValue) {
+		assertTrue(event instanceof ChannelStateEvent);
+		ChannelStateEvent stateEvent = (ChannelStateEvent) event;
+		Assert.assertEquals(expectedState, stateEvent.getState());
+		Assert.assertEquals(expectedValue, stateEvent.getValue());
+		return stateEvent;
+	}
 }

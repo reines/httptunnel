@@ -33,40 +33,40 @@ import org.jboss.netty.channel.ChannelFutureListener;
  */
 public class ChannelFutureAggregator implements ChannelFutureListener {
 
-    private final ChannelFuture aggregateFuture;
+	private final ChannelFuture aggregateFuture;
+	private final Set<ChannelFuture> pendingFutures;
 
-    private final Set<ChannelFuture> pendingFutures;
+	public ChannelFutureAggregator(ChannelFuture aggregateFuture) {
+		this.aggregateFuture = aggregateFuture;
 
-    public ChannelFutureAggregator(ChannelFuture aggregateFuture) {
-        this.aggregateFuture = aggregateFuture;
-        pendingFutures = new HashSet<ChannelFuture>();
-    }
+		pendingFutures = new HashSet<ChannelFuture>();
+	}
 
-    public void addFuture(ChannelFuture future) {
-        pendingFutures.add(future);
-        future.addListener(this);
-    }
+	public void addFuture(ChannelFuture future) {
+		pendingFutures.add(future);
+		future.addListener(this);
+	}
 
-    @Override
-    public synchronized void operationComplete(ChannelFuture future)
-            throws Exception {
-        if (future.isCancelled()) {
-            // TODO: what should the correct behaviour be when a fragment is cancelled?
-            // cancel all outstanding fragments and cancel the aggregate?
-            return;
-        }
+	@Override
+	public synchronized void operationComplete(ChannelFuture future) throws Exception {
+		if (future.isCancelled()) {
+			// TODO: what should the correct behaviour be when a fragment is cancelled?
+			// cancel all outstanding fragments and cancel the aggregate?
+			return;
+		}
 
-        pendingFutures.remove(future);
-        if (!future.isSuccess()) {
-            aggregateFuture.setFailure(future.getCause());
-            for (ChannelFuture pendingFuture: pendingFutures) {
-                pendingFuture.cancel();
-            }
-            return;
-        }
+		pendingFutures.remove(future);
 
-        if (pendingFutures.isEmpty()) {
-            aggregateFuture.setSuccess();
-        }
-    }
+		if (!future.isSuccess()) {
+			aggregateFuture.setFailure(future.getCause());
+
+			for (ChannelFuture pendingFuture : pendingFutures)
+				pendingFuture.cancel();
+
+			return;
+		}
+
+		if (pendingFutures.isEmpty())
+			aggregateFuture.setSuccess();
+	}
 }

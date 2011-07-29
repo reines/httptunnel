@@ -15,115 +15,255 @@
  */
 package org.jboss.netty.channel.socket.http.server;
 
-import static org.jboss.netty.channel.Channels.fireChannelBound;
-import static org.jboss.netty.channel.Channels.fireChannelConnected;
-import static org.jboss.netty.channel.Channels.fireChannelOpen;
-
 import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.AbstractChannel;
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFactory;
+import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelPipeline;
+import org.jboss.netty.channel.ChannelSink;
 import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.socket.SocketChannel;
-import org.jboss.netty.channel.socket.SocketChannelConfig;
+import org.jboss.netty.channel.socket.http.SaturationManager;
 import org.jboss.netty.channel.socket.http.SaturationStateChange;
+import org.jboss.netty.channel.socket.http.util.ChannelFutureAggregator;
+import org.jboss.netty.channel.socket.http.util.ForwardingFutureListener;
+import org.jboss.netty.channel.socket.http.util.HttpTunnelMessageUtils;
+import org.jboss.netty.channel.socket.http.util.QueuedResponse;
+import org.jboss.netty.channel.socket.http.util.WriteSplitter;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.logging.InternalLogger;
+import org.jboss.netty.logging.InternalLoggerFactory;
 
 /**
- * Represents the server end of an HTTP tunnel, created after a legal tunnel creation
- * request is received from a client. The server end of a tunnel does not have any
- * directly related TCP connections - the connections used by a client are likely
- * to change over the lifecycle of a tunnel, especially when an HTTP proxy is in
- * use.
+ * Represents the server end of an HTTP tunnel, created after a legal tunnel
+ * creation request is received from a client. The server end of a tunnel does
+ * not have any directly related TCP connections - the connections used by a
+ * client are likely to change over the lifecycle of a tunnel, especially when
+ * an HTTP proxy is in use.
  *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
  */
-class HttpTunnelAcceptedChannel extends AbstractChannel implements
-        SocketChannel, HttpTunnelAcceptedChannelReceiver {
-    private final HttpTunnelAcceptedChannelConfig config;
+class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel {
 
-    private final HttpTunnelAcceptedChannelSink sink;
+	private static final InternalLogger LOG = InternalLoggerFactory.getInstance(HttpTunnelAcceptedChannel.class);
 
-    private final InetSocketAddress remoteAddress;
+	private final HttpTunnelServerChannel parent;
+	private final HttpTunnelAcceptedChannelConfig config;
+	private final SaturationManager saturationManager;
+	private final InetSocketAddress remoteAddress;
+	private final InetSocketAddress localAddress;
+	private final String tunnelId;
 
-    protected HttpTunnelAcceptedChannel(HttpTunnelServerChannel parent,
-            ChannelFactory factory, ChannelPipeline pipeline,
-            HttpTunnelAcceptedChannelSink sink,
-            InetSocketAddress remoteAddress,
-            HttpTunnelAcceptedChannelConfig config) {
-        super(parent, factory, pipeline, sink);
-        this.config = config;
-        this.sink = sink;
-        this.remoteAddress = remoteAddress;
-        fireChannelOpen(this);
-        fireChannelBound(this, getLocalAddress());
-        fireChannelConnected(this, getRemoteAddress());
-    }
+	private final AtomicBoolean opened;
 
-    @Override
-    public SocketChannelConfig getConfig() {
-        return config;
-    }
+	private final AtomicReference<Channel> pollChannel;
+	private final Queue<QueuedResponse> queuedResponses;
 
-    @Override
-    public InetSocketAddress getLocalAddress() {
+	protected HttpTunnelAcceptedChannel(HttpTunnelServerChannel parent, ChannelFactory factory, ChannelPipeline pipeline, ChannelSink sink, InetSocketAddress remoteAddress, String tunnelId) {
+		super (parent, factory, pipeline, sink);
 
-        return ((HttpTunnelServerChannel) getParent()).getLocalAddress();
-    }
+		this.parent = parent;
+		this.remoteAddress = remoteAddress;
+		this.tunnelId = tunnelId;
 
-    @Override
-    public InetSocketAddress getRemoteAddress() {
-        return remoteAddress;
-    }
+		localAddress = parent.getLocalAddress();
+		config = new DefaultHttpTunnelAcceptedChannelConfig();
 
-    @Override
-    public boolean isBound() {
-        return sink.isActive();
-    }
+		saturationManager = new SaturationManager(config.getWriteBufferLowWaterMark(), config.getWriteBufferHighWaterMark());
 
-    @Override
-    public boolean isConnected() {
-        return sink.isActive();
-    }
+		opened = new AtomicBoolean(true);
 
-    @Override
-    public void clientClosed() {
-        this.setClosed();
+		pollChannel = new AtomicReference<Channel>(null);
+		queuedResponses = new ConcurrentLinkedQueue<QueuedResponse>();
+	}
 
-        Channels.fireChannelDisconnected(this);
-        Channels.fireChannelUnbound(this);
-        Channels.fireChannelClosed(this);
-    }
+	String getTunnelId() {
+		return tunnelId;
+	}
 
-    @Override
-    public void dataReceived(ChannelBuffer data) {
-        Channels.fireMessageReceived(this, data);
-    }
+	@Override
+	public HttpTunnelAcceptedChannelConfig getConfig() {
+		return config;
+	}
 
-    @Override
-    public void updateInterestOps(SaturationStateChange transition) {
-        switch (transition) {
-        case SATURATED:
-            fireWriteEnabled(false);
-            break;
-        case DESATURATED:
-            fireWriteEnabled(true);
-            break;
-        case NO_CHANGE:
-            break;
-        }
-    }
+	@Override
+	public InetSocketAddress getLocalAddress() {
+		return this.isBound() ? localAddress : null;
+	}
 
-    private void fireWriteEnabled(boolean enabled) {
-        int ops = OP_READ;
-        if (!enabled) {
-            ops |= OP_WRITE;
-        }
+	@Override
+	public InetSocketAddress getRemoteAddress() {
+		return this.isConnected() ? remoteAddress : null;
+	}
 
-        setInterestOpsNow(ops);
-        Channels.fireChannelInterestChanged(this);
-    }
+	@Override
+	public boolean isBound() {
+		return parent.getTunnel(tunnelId) != null;
+	}
+
+	@Override
+	public boolean isConnected() {
+		return parent.getTunnel(tunnelId) != null;
+	}
+
+	@Override
+	public boolean setClosed() {
+		final boolean success = super.setClosed();
+		Channels.fireChannelClosed(this);
+
+		return success;
+	}
+
+	synchronized ChannelFuture internalClose(boolean sendCloseRequest, ChannelFuture future) {
+		if (!opened.getAndSet(false)) {
+			future.setSuccess();
+			return future;
+		}
+
+		// Closed from the server end - we should notify the client
+		if (sendCloseRequest) {
+			final Channel channel = pollChannel.getAndSet(null);
+			// response channel is already in use, client will be notified of close at next opportunity
+			if (channel != null && channel.isOpen())
+				Channels.write(channel, HttpTunnelMessageUtils.createTunnelCloseResponse());
+		}
+
+		Channels.fireChannelDisconnected(this);
+		Channels.fireChannelUnbound(this);
+
+		parent.removeTunnel(tunnelId);
+		this.setClosed();
+
+		future.setSuccess();
+		return future;
+	}
+
+	synchronized ChannelFuture internalSetInterestOps(int ops, ChannelFuture future) {
+		super.setInterestOpsNow(ops);
+		Channels.fireChannelInterestChanged(this);
+
+		future.setSuccess();
+		return future;
+	}
+
+	synchronized void internalReceiveMessage(ChannelBuffer messageBuffer) {
+		if (!opened.get())
+			return;
+
+		Channels.fireMessageReceived(this, messageBuffer);
+	}
+
+	synchronized ChannelFuture sendMessage(MessageEvent message) {
+		final ChannelFuture messageFuture = message.getFuture();
+
+		if (!this.isConnected()) {
+			final Exception error = new IllegalStateException("Unable to send message when not connected");
+
+			messageFuture.setFailure(error);
+			Channels.fireExceptionCaught(this, error);
+
+			return messageFuture;
+		}
+
+		saturationManager.updateThresholds(config.getWriteBufferLowWaterMark(), config.getWriteBufferHighWaterMark());
+
+		// Deliver the message using the underlying channel
+		final ChannelBuffer messageBuffer = (ChannelBuffer) message.getMessage();
+		final int messageSize = messageBuffer.readableBytes();
+
+		updateSaturationStatus(messageSize);
+
+		messageFuture.addListener(new ChannelFutureListener() {
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				updateSaturationStatus(-messageSize);
+			}
+		});
+
+		final ChannelFutureAggregator aggregator = new ChannelFutureAggregator(messageFuture);
+		final List<ChannelBuffer> fragments = WriteSplitter.split(messageBuffer, HttpTunnelMessageUtils.MAX_BODY_SIZE);
+
+		if (LOG.isDebugEnabled())
+			LOG.debug("routing outbound data for tunnel " + tunnelId);
+
+		for (ChannelBuffer fragment : fragments) {
+			final ChannelFuture fragmentFuture = Channels.future(this);
+			aggregator.addFuture(fragmentFuture);
+
+			queuedResponses.offer(new QueuedResponse(fragment, fragmentFuture));
+		}
+
+		this.sendQueuedData();
+
+		return messageFuture;
+	}
+
+	synchronized void pollQueuedData(Channel channel) {
+		if (!this.pollChannel.compareAndSet(null, channel))
+			throw new IllegalStateException("Only one poll request at a time per tunnel allowed");
+
+		this.sendQueuedData();
+	}
+
+	synchronized void sendQueuedData() {
+		final Channel channel = pollChannel.getAndSet(null);
+		// no response channel, or another thread has already used it
+		if (channel == null)
+			return;
+
+		final QueuedResponse messageToSend = queuedResponses.poll();
+		// no data to send, restore the response channel and bail out
+		if (messageToSend == null) {
+			pollChannel.set(channel);
+			return;
+		}
+
+		if (LOG.isDebugEnabled())
+			LOG.debug("sending response for tunnel id " + tunnelId + " to " + channel.getRemoteAddress());
+
+		final HttpResponse response = HttpTunnelMessageUtils.createRecvDataResponse(messageToSend.getData());
+		final ChannelFuture future = messageToSend.getFuture();
+
+		Channels.write(channel, response).addListener(new ForwardingFutureListener(future));
+	}
+
+	void updateSaturationStatus(int queueSizeDelta) {
+		final SaturationStateChange transition = saturationManager.queueSizeChanged(queueSizeDelta);
+
+		switch (transition) {
+			case SATURATED: {
+				this.fireWriteEnabled(false);
+				break;
+			}
+
+			case DESATURATED: {
+				this.fireWriteEnabled(true);
+				break;
+			}
+
+			case NO_CHANGE: {
+				break;
+			}
+		}
+	}
+
+	private void fireWriteEnabled(boolean enabled) {
+		int ops = OP_READ;
+		if (!enabled)
+			ops |= OP_WRITE;
+
+		this.internalSetInterestOps(ops, Channels.future(this));
+	}
 }

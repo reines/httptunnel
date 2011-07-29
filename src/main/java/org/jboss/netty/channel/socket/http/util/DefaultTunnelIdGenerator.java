@@ -20,8 +20,8 @@ import java.security.SecureRandom;
 
 /**
  * Default implementation of TunnelIdGenerator, which uses a
- * {@link java.security.SecureRandom SecureRandom} generator
- * to produce 32-bit tunnel identifiers.
+ * {@link java.security.SecureRandom SecureRandom} generator to produce 32-bit
+ * tunnel identifiers.
  *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
@@ -29,22 +29,21 @@ import java.security.SecureRandom;
  */
 public class DefaultTunnelIdGenerator implements TunnelIdGenerator {
 
-    private SecureRandom generator;
+	private final SecureRandom generator;
 
-    public DefaultTunnelIdGenerator() {
-        this(new SecureRandom());
-    }
+	public DefaultTunnelIdGenerator() {
+		this(new SecureRandom());
+	}
 
-    public DefaultTunnelIdGenerator(SecureRandom generator) {
-        this.generator = generator;
-    }
+	public DefaultTunnelIdGenerator(SecureRandom generator) {
+		this.generator = generator;
+	}
 
-    @Override
-    public synchronized String generateId() {
-        // synchronized to ensure that this code is thread safe. The Sun
-        // standard implementations seem to be synchronized or lock free
-        // but are not documented as guaranteeing this
-        return Integer.toHexString(generator.nextInt());
-    }
-
+	@Override
+	public synchronized String generateId() {
+		// synchronized to ensure that this code is thread safe. The Sun
+		// standard implementations seem to be synchronized or lock free
+		// but are not documented as guaranteeing this
+		return Integer.toHexString(generator.nextInt());
+	}
 }

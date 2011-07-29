@@ -15,7 +15,6 @@
  */
 package org.jboss.netty.channel.socket.http.util;
 
-import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -46,297 +45,280 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
  */
 public class HttpTunnelMessageUtils {
 
-    private static final String HTTP_URL_PREFIX = "http://";
+	private static final String HTTP_URL_PREFIX = "http://";
 
-    /**
-     * An upper bound is enforced on the size of message bodies, so as
-     * to ensure we do not dump large chunks of data on either peer.
-     */
-    public static final int MAX_BODY_SIZE = 16 * 1024;
+	/**
+	 * An upper bound is enforced on the size of message bodies, so as to ensure
+	 * we do not dump large chunks of data on either peer.
+	 */
+	public static final int MAX_BODY_SIZE = 16 * 1024;
 
-    /**
-     * The tunnel will only accept connections from this specific user agent. This
-     * allows us to distinguish a legitimate tunnel connection from someone pointing
-     * a web browser or robot at the tunnel URL.
-     */
-    static final String USER_AGENT = "HttpTunnelClient";
+	/**
+	 * The tunnel will only accept connections from this specific user agent.
+	 * This allows us to distinguish a legitimate tunnel connection from someone
+	 * pointing a web browser or robot at the tunnel URL.
+	 */
+	private static final String USER_AGENT = "HttpTunnelClient";
 
-    static final String OPEN_TUNNEL_REQUEST_URI = "/http-tunnel/open";
+	private static final String OPEN_TUNNEL_REQUEST_URI = "/http-tunnel/open";
+	private static final String CLOSE_TUNNEL_REQUEST_URI = "/http-tunnel/close";
+	private static final String CLIENT_SEND_REQUEST_URI = "/http-tunnel/send";
+	private static final String CLIENT_RECV_REQUEST_URI = "/http-tunnel/poll";
 
-    static final String CLOSE_TUNNEL_REQUEST_URI = "/http-tunnel/close";
+	public static HttpRequest createOpenTunnelRequest(SocketAddress host) {
+		return createOpenTunnelRequest(convertToHostString(host));
+	}
 
-    static final String CLIENT_SEND_REQUEST_URI = "/http-tunnel/send";
+	public static HttpRequest createOpenTunnelRequest(String host) {
+		final HttpRequest request = createRequestTemplate(host, null, OPEN_TUNNEL_REQUEST_URI);
 
-    static final String CLIENT_RECV_REQUEST_URI = "/http-tunnel/poll";
+		setNoData(request);
 
-    static final String CONTENT_TYPE = "application/octet-stream";
+		return request;
+	}
 
-    public static HttpRequest createOpenTunnelRequest(SocketAddress host) {
-        return createOpenTunnelRequest(convertToHostString(host));
-    }
+	public static boolean isOpenTunnelRequest(HttpRequest request) {
+		return isRequestTo(request, OPEN_TUNNEL_REQUEST_URI);
+	}
 
-    public static HttpRequest createOpenTunnelRequest(String host) {
-        HttpRequest request =
-                createRequestTemplate(host, null, OPEN_TUNNEL_REQUEST_URI);
-        setNoData(request);
-        return request;
-    }
+	public static boolean checkHost(HttpRequest request, SocketAddress expectedHost) {
+		final String host = request.getHeader(HttpHeaders.Names.HOST);
+		return expectedHost == null ? host == null : convertToHostString(expectedHost).equals(host);
+	}
 
-    public static boolean isOpenTunnelRequest(HttpRequest request) {
-        return isRequestTo(request, OPEN_TUNNEL_REQUEST_URI);
-    }
+	public static HttpRequest createSendDataRequest(SocketAddress host, String cookie, ChannelBuffer data) {
+		return createSendDataRequest(convertToHostString(host), cookie, data);
+	}
 
-    public static boolean checkHost(HttpRequest request,
-            SocketAddress expectedHost) {
-        String host = request.getHeader(HttpHeaders.Names.HOST);
-        return expectedHost == null? host == null : HttpTunnelMessageUtils
-                .convertToHostString(expectedHost).equals(host);
-    }
+	public static HttpRequest createSendDataRequest(String host, String cookie, ChannelBuffer data) {
+		final HttpRequest request = createRequestTemplate(host, cookie, CLIENT_SEND_REQUEST_URI);
 
-    public static HttpRequest createSendDataRequest(SocketAddress host,
-            String cookie, ChannelBuffer data) {
-        return createSendDataRequest(convertToHostString(host), cookie, data);
-    }
+		request.setHeader(HttpHeaders.Names.CONTENT_LENGTH, Long.toString(data.readableBytes()));
+		request.setContent(data);
 
-    public static HttpRequest createSendDataRequest(String host, String cookie,
-            ChannelBuffer data) {
-        HttpRequest request =
-                createRequestTemplate(host, cookie, CLIENT_SEND_REQUEST_URI);
-        request.setHeader(HttpHeaders.Names.CONTENT_LENGTH,
-                Long.toString(data.readableBytes()));
-        request.setContent(data);
+		return request;
+	}
 
-        return request;
-    }
+	public static boolean isSendDataRequest(HttpRequest request) {
+		return isRequestTo(request, CLIENT_SEND_REQUEST_URI);
+	}
 
-    public static boolean isSendDataRequest(HttpRequest request) {
-        return isRequestTo(request, CLIENT_SEND_REQUEST_URI);
-    }
+	public static HttpRequest createReceiveDataRequest(SocketAddress host, String tunnelId) {
+		return createReceiveDataRequest(convertToHostString(host), tunnelId);
+	}
 
-    public static HttpRequest createReceiveDataRequest(SocketAddress host,
-            String tunnelId) {
-        return createReceiveDataRequest(convertToHostString(host), tunnelId);
-    }
+	public static HttpRequest createReceiveDataRequest(String host, String tunnelId) {
+		final HttpRequest request = createRequestTemplate(host, tunnelId, CLIENT_RECV_REQUEST_URI);
 
-    public static HttpRequest createReceiveDataRequest(String host,
-            String tunnelId) {
-        HttpRequest request =
-                createRequestTemplate(host, tunnelId, CLIENT_RECV_REQUEST_URI);
-        setNoData(request);
-        return request;
-    }
+		setNoData(request);
 
-    public static boolean isReceiveDataRequest(HttpRequest request) {
-        return isRequestTo(request, CLIENT_RECV_REQUEST_URI);
-    }
+		return request;
+	}
 
-    public static HttpRequest createCloseTunnelRequest(String host,
-            String tunnelId) {
-        HttpRequest request =
-                createRequestTemplate(host, tunnelId, CLOSE_TUNNEL_REQUEST_URI);
-        setNoData(request);
-        return request;
-    }
+	public static boolean isReceiveDataRequest(HttpRequest request) {
+		return isRequestTo(request, CLIENT_RECV_REQUEST_URI);
+	}
 
-    public static boolean isCloseTunnelRequest(HttpRequest request) {
-        return isRequestTo(request, CLOSE_TUNNEL_REQUEST_URI);
-    }
+	public static HttpRequest createCloseTunnelRequest(String host, String tunnelId) {
+		final HttpRequest request = createRequestTemplate(host, tunnelId, CLOSE_TUNNEL_REQUEST_URI);
 
-    public static boolean isServerToClientRequest(HttpRequest request) {
-        return isRequestTo(request, CLIENT_RECV_REQUEST_URI);
-    }
+		setNoData(request);
 
-    public static String convertToHostString(SocketAddress hostAddress) {
-        StringWriter host = new StringWriter();
-        InetSocketAddress inetSocketAddr = (InetSocketAddress) hostAddress;
-        InetAddress addr = inetSocketAddr.getAddress();
-        if (addr instanceof Inet6Address) {
-            host.append('[');
-            host.append(addr.getHostAddress());
-            host.append(']');
-        } else if (addr != null) {
-            host.append(addr.getHostAddress());
-        } else {
-            host.append(inetSocketAddr.getHostName());
-        }
+		return request;
+	}
 
-        host.append(':');
-        host.append(Integer.toString(inetSocketAddr.getPort()));
-        return host.toString();
-    }
+	public static boolean isCloseTunnelRequest(HttpRequest request) {
+		return isRequestTo(request, CLOSE_TUNNEL_REQUEST_URI);
+	}
 
-    private static HttpRequest createRequestTemplate(String host,
-            String tunnelId, String uri) {
-        HttpRequest request =
-                new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST,
-                        createCompleteUri(host, uri));
-        request.setHeader(HttpHeaders.Names.HOST, host);
-        request.setHeader(HttpHeaders.Names.USER_AGENT, USER_AGENT);
-        if (tunnelId != null) {
-            request.setHeader(HttpHeaders.Names.COOKIE, tunnelId);
-        }
+	public static boolean isServerToClientRequest(HttpRequest request) {
+		return isRequestTo(request, CLIENT_RECV_REQUEST_URI);
+	}
 
-        return request;
-    }
+	public static String convertToHostString(SocketAddress hostAddress) {
+		final StringBuilder host = new StringBuilder();
 
-    private static String createCompleteUri(String host, String uri) {
-        StringBuilder builder =
-                new StringBuilder(HTTP_URL_PREFIX.length() + host.length() +
-                        uri.length());
-        builder.append(HTTP_URL_PREFIX);
-        builder.append(host);
-        builder.append(uri);
+		final InetSocketAddress inetSocketAddr = (InetSocketAddress) hostAddress;
+		final InetAddress addr = inetSocketAddr.getAddress();
 
-        return builder.toString();
-    }
+		if (addr instanceof Inet6Address) {
+			host.append('[');
+			host.append(addr.getHostAddress());
+			host.append(']');
+		}
+		else if (addr != null) {
+			host.append(addr.getHostAddress());
+		}
+		else {
+			host.append(inetSocketAddr.getHostName());
+		}
 
-    private static boolean isRequestTo(HttpRequest request, String uri) {
-        URI decodedUri;
-        try {
-            decodedUri = new URI(request.getUri());
-        } catch (URISyntaxException e) {
-            return false;
-        }
+		host.append(':');
+		host.append(inetSocketAddr.getPort());
 
-        return HttpVersion.HTTP_1_1.equals(request.getProtocolVersion()) &&
-                USER_AGENT.equals(request
-                        .getHeader(HttpHeaders.Names.USER_AGENT)) &&
-                HttpMethod.POST.equals(request.getMethod()) &&
-                uri.equals(decodedUri.getPath());
-    }
+		return host.toString();
+	}
 
-    private static void setNoData(HttpRequest request) {
-        request.setHeader(HttpHeaders.Names.CONTENT_LENGTH, "0");
-        request.setContent(null);
-    }
+	private static HttpRequest createRequestTemplate(String host, String tunnelId, String uri) {
+		final HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, createCompleteUri(host, uri));
 
-    public static String extractTunnelId(HttpRequest request) {
-        return request.getHeader(HttpHeaders.Names.COOKIE);
-    }
+		request.setHeader(HttpHeaders.Names.HOST, host);
+		request.setHeader(HttpHeaders.Names.USER_AGENT, USER_AGENT);
 
-    private static byte[] toBytes(String string) {
-        try {
-            return string.getBytes("UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            // UTF-8 is meant to be supported on all platforms
-            throw new RuntimeException("UTF-8 encoding not supported!");
-        }
-    }
+		if (tunnelId != null)
+			request.setHeader(HttpHeaders.Names.COOKIE, tunnelId);
 
-    public static HttpResponse createTunnelOpenResponse(String tunnelId) {
-        HttpResponse response =
-                createResponseTemplate(HttpResponseStatus.CREATED, null);
-        response.setHeader(HttpHeaders.Names.SET_COOKIE, tunnelId);
-        return response;
-    }
+		return request;
+	}
 
-    public static boolean isTunnelOpenResponse(HttpResponse response) {
-        return isResponseWithCode(response, HttpResponseStatus.CREATED);
-    }
+	private static String createCompleteUri(String host, String uri) {
+		final StringBuilder builder = new StringBuilder(HTTP_URL_PREFIX.length() + host.length() + uri.length());
 
-    public static boolean isOKResponse(HttpResponse response) {
-        return isResponseWithCode(response, HttpResponseStatus.OK);
-    }
+		builder.append(HTTP_URL_PREFIX);
+		builder.append(host);
+		builder.append(uri);
 
-    public static boolean hasContents(HttpResponse response,
-            byte[] expectedContents) {
-        if (response.getContent() != null &&
-                HttpHeaders.getContentLength(response, 0) == expectedContents.length &&
-                response.getContent().readableBytes() == expectedContents.length) {
-            byte[] compareBytes = new byte[expectedContents.length];
-            response.getContent().readBytes(compareBytes);
-            return Arrays.equals(expectedContents, compareBytes);
-        }
+		return builder.toString();
+	}
 
-        return false;
-    }
+	private static boolean isRequestTo(HttpRequest request, String uri) {
+		final URI decodedUri;
+		try {
+			decodedUri = new URI(request.getUri());
+		}
+		catch (URISyntaxException e) {
+			return false;
+		}
 
-    public static HttpResponse createTunnelCloseResponse() {
-        HttpResponse response =
-                createResponseTemplate(HttpResponseStatus.RESET_CONTENT, null);
-        return response;
-    }
+		return HttpVersion.HTTP_1_1.equals(request.getProtocolVersion())
+			&& USER_AGENT.equals(request.getHeader(HttpHeaders.Names.USER_AGENT))
+			&& HttpMethod.POST.equals(request.getMethod())
+			&& uri.equals(decodedUri.getPath());
+	}
 
-    public static boolean isTunnelCloseResponse(HttpResponse response) {
-        return isResponseWithCode(response, HttpResponseStatus.RESET_CONTENT);
-    }
+	private static void setNoData(HttpRequest request) {
+		request.setHeader(HttpHeaders.Names.CONTENT_LENGTH, "0");
+		request.setContent(null);
+	}
 
-    public static String extractCookie(HttpResponse response) {
-        if (response.containsHeader(HttpHeaders.Names.SET_COOKIE)) {
-            return response.getHeader(HttpHeaders.Names.SET_COOKIE);
-        }
+	public static String extractTunnelId(HttpRequest request) {
+		return request.getHeader(HttpHeaders.Names.COOKIE);
+	}
 
-        return null;
-    }
+	private static byte[] toBytes(String string) {
+		try {
+			return string.getBytes("UTF-8");
+		}
+		catch (UnsupportedEncodingException e) {
+			// UTF-8 is meant to be supported on all platforms
+			throw new RuntimeException("UTF-8 encoding not supported!");
+		}
+	}
 
-    public static HttpResponse createSendDataResponse() {
-        return createOKResponseTemplate(null);
-    }
+	public static HttpResponse createTunnelOpenResponse(String tunnelId) {
+		final HttpResponse response = createResponseTemplate(HttpResponseStatus.CREATED, null);
 
-    public static HttpResponse createRecvDataResponse(ChannelBuffer data) {
-        return createOKResponseTemplate(data);
-    }
+		response.setHeader(HttpHeaders.Names.SET_COOKIE, tunnelId);
 
-    public static HttpResponse createRejection(HttpRequest request,
-            String reason) {
-        HttpVersion version =
-                request != null? request.getProtocolVersion()
-                        : HttpVersion.HTTP_1_1;
-        HttpResponse response =
-                new DefaultHttpResponse(version, HttpResponseStatus.BAD_REQUEST);
-        response.setHeader(HttpHeaders.Names.CONTENT_TYPE,
-                "text/plain; charset=\"utf-8\"");
-        ChannelBuffer reasonBuffer =
-                ChannelBuffers.wrappedBuffer(toBytes(reason));
-        response.setHeader(HttpHeaders.Names.CONTENT_LENGTH,
-                Integer.toString(reasonBuffer.readableBytes()));
-        response.setContent(reasonBuffer);
-        return response;
-    }
+		return response;
+	}
 
-    public static boolean isRejection(HttpResponse response) {
-        return !HttpResponseStatus.OK.equals(response.getStatus());
-    }
+	public static boolean isTunnelOpenResponse(HttpResponse response) {
+		return isResponseWithCode(response, HttpResponseStatus.CREATED);
+	}
 
-    public static Object extractErrorMessage(HttpResponse response) {
-        if (response.getContent() == null ||
-                HttpHeaders.getContentLength(response, 0) == 0) {
-            return "";
-        }
+	public static boolean isOKResponse(HttpResponse response) {
+		return isResponseWithCode(response, HttpResponseStatus.OK);
+	}
 
-        byte[] bytes = new byte[response.getContent().readableBytes()];
-        response.getContent().readBytes(bytes);
-        try {
-            return new String(bytes, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            return "";
-        }
-    }
+	public static boolean hasContents(HttpResponse response, byte[] expectedContents) {
+		if (response.getContent() != null
+				&& HttpHeaders.getContentLength(response, 0) == expectedContents.length
+				&& response.getContent().readableBytes() == expectedContents.length) {
+			final byte[] compareBytes = new byte[expectedContents.length];
+			response.getContent().readBytes(compareBytes);
+			return Arrays.equals(expectedContents, compareBytes);
+		}
 
-    private static boolean isResponseWithCode(HttpResponse response,
-            HttpResponseStatus status) {
-        return HttpVersion.HTTP_1_1.equals(response.getProtocolVersion()) &&
-                status.equals(response.getStatus());
-    }
+		return false;
+	}
 
-    private static HttpResponse createOKResponseTemplate(ChannelBuffer data) {
-        return createResponseTemplate(HttpResponseStatus.OK, data);
-    }
+	public static HttpResponse createTunnelCloseResponse() {
+		return createResponseTemplate(HttpResponseStatus.RESET_CONTENT, null);
+	}
 
-    private static HttpResponse createResponseTemplate(
-            HttpResponseStatus status, ChannelBuffer data) {
-        HttpResponse response =
-                new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
-        if (data != null) {
-            response.setHeader(HttpHeaders.Names.CONTENT_LENGTH,
-                    Integer.toString(data.readableBytes()));
-            response.setHeader(HttpHeaders.Names.CONTENT_TYPE,
-                    "application/octet-stream");
-            response.setContent(data);
-        } else {
-            response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, "0");
-            response.setContent(null);
-        }
-        return response;
-    }
+	public static boolean isTunnelCloseResponse(HttpResponse response) {
+		return isResponseWithCode(response, HttpResponseStatus.RESET_CONTENT);
+	}
+
+	public static String extractCookie(HttpResponse response) {
+		if (response.containsHeader(HttpHeaders.Names.SET_COOKIE))
+			return response.getHeader(HttpHeaders.Names.SET_COOKIE);
+
+		return null;
+	}
+
+	public static HttpResponse createSendDataResponse() {
+		return createOKResponseTemplate(null);
+	}
+
+	public static HttpResponse createRecvDataResponse(ChannelBuffer data) {
+		return createOKResponseTemplate(data);
+	}
+
+	public static HttpResponse createRejection(HttpRequest request, String reason) {
+		final HttpVersion version = request != null ? request.getProtocolVersion() : HttpVersion.HTTP_1_1;
+		final ChannelBuffer reasonBuffer = ChannelBuffers.wrappedBuffer(toBytes(reason));
+		final HttpResponse response = new DefaultHttpResponse(version, HttpResponseStatus.BAD_REQUEST);
+
+		response.setHeader(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=\"utf-8\"");
+		response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, Integer.toString(reasonBuffer.readableBytes()));
+		response.setContent(reasonBuffer);
+
+		return response;
+	}
+
+	public static boolean isRejection(HttpResponse response) {
+		return !HttpResponseStatus.OK.equals(response.getStatus());
+	}
+
+	public static Object extractErrorMessage(HttpResponse response) {
+		if (response.getContent() == null
+				|| HttpHeaders.getContentLength(response, 0) == 0)
+			return "";
+
+		final byte[] bytes = new byte[response.getContent().readableBytes()];
+		response.getContent().readBytes(bytes);
+
+		try {
+			return new String(bytes, "UTF-8");
+		}
+		catch (UnsupportedEncodingException e) {
+			return "";
+		}
+	}
+
+	private static boolean isResponseWithCode(HttpResponse response, HttpResponseStatus status) {
+		return HttpVersion.HTTP_1_1.equals(response.getProtocolVersion()) && status.equals(response.getStatus());
+	}
+
+	private static HttpResponse createOKResponseTemplate(ChannelBuffer data) {
+		return createResponseTemplate(HttpResponseStatus.OK, data);
+	}
+
+	private static HttpResponse createResponseTemplate(HttpResponseStatus status, ChannelBuffer data) {
+		final HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
+
+		if (data != null) {
+			response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, Integer.toString(data.readableBytes()));
+			response.setHeader(HttpHeaders.Names.CONTENT_TYPE, "application/octet-stream");
+			response.setContent(data);
+		}
+		else {
+			response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, "0");
+			response.setContent(null);
+		}
+
+		return response;
+	}
 }

@@ -25,9 +25,9 @@ import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 
 /**
- * Creates pipelines for incoming http tunnel connections, capable of decoding the incoming HTTP
- * requests, determining their type (client sending data, client polling data, or unknown) and
- * handling them appropriately.
+ * Creates pipelines for incoming http tunnel connections, capable of decoding
+ * the incoming HTTP requests, determining their type (client sending data,
+ * client polling data, or unknown) and handling them appropriately.
  *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
@@ -35,24 +35,21 @@ import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
  */
 class HttpTunnelAcceptedChannelPipelineFactory implements ChannelPipelineFactory {
 
-    private final ServerMessageSwitch messageSwitch;
+	private final HttpTunnelServerChannel parent;
 
-    public HttpTunnelAcceptedChannelPipelineFactory(
-            ServerMessageSwitch messageSwitch) {
-        this.messageSwitch = messageSwitch;
-    }
+	public HttpTunnelAcceptedChannelPipelineFactory(HttpTunnelServerChannel parent) {
+		this.parent = parent;
+	}
 
-    @Override
-    public ChannelPipeline getPipeline() throws Exception {
-        ChannelPipeline pipeline = Channels.pipeline();
+	@Override
+	public ChannelPipeline getPipeline() throws Exception {
+		final ChannelPipeline pipeline = Channels.pipeline();
 
-        pipeline.addLast("httpResponseEncoder", new HttpResponseEncoder());
-        pipeline.addLast("httpRequestDecoder", new HttpRequestDecoder());
-        pipeline.addLast("httpChunkAggregator", new HttpChunkAggregator(
-                HttpTunnelMessageUtils.MAX_BODY_SIZE));
-        pipeline.addLast("messageSwitchClient",
-                new HttpTunnelAcceptedChannelRequestDispatch(messageSwitch));
+		pipeline.addLast("httpResponseEncoder", new HttpResponseEncoder());
+		pipeline.addLast("httpRequestDecoder", new HttpRequestDecoder());
+		pipeline.addLast("httpChunkAggregator", new HttpChunkAggregator(HttpTunnelMessageUtils.MAX_BODY_SIZE));
+		pipeline.addLast("messageSwitchClient", new HttpTunnelAcceptedChannelHandler(parent));
 
-        return pipeline;
-    }
+		return pipeline;
+	}
 }

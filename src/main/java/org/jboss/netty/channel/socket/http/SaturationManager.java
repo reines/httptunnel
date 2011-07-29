@@ -24,46 +24,45 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class is used to monitor the amount of data that has yet to be pushed to
- * the underlying socket, in order to implement the "high/low water mark" facility
- * that controls Channel.isWritable() and the interest ops of http tunnels.
- * 
+ * the underlying socket, in order to implement the "high/low water mark"
+ * facility that controls Channel.isWritable() and the interest ops of http
+ * tunnels.
+ *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
  */
 public class SaturationManager {
-    private AtomicLong desaturationPoint;
+	private final AtomicLong desaturationPoint;
+	private final AtomicLong saturationPoint;
+	private final AtomicLong queueSize;
+	private final AtomicBoolean saturated;
 
-    private AtomicLong saturationPoint;
+	public SaturationManager(long desaturationPoint, long saturationPoint) {
+		this.desaturationPoint = new AtomicLong(desaturationPoint);
+		this.saturationPoint = new AtomicLong(saturationPoint);
 
-    private final AtomicLong queueSize;
+		queueSize = new AtomicLong(0);
+		saturated = new AtomicBoolean(false);
+	}
 
-    private final AtomicBoolean saturated;
+	public SaturationStateChange queueSizeChanged(long sizeDelta) {
+		long newQueueSize = queueSize.addAndGet(sizeDelta);
+		if (newQueueSize <= desaturationPoint.get()) {
+			if (saturated.compareAndSet(true, false))
+				return DESATURATED;
 
-    public SaturationManager(long desaturationPoint, long saturationPoint) {
-        this.desaturationPoint = new AtomicLong(desaturationPoint);
-        this.saturationPoint = new AtomicLong(saturationPoint);
-        queueSize = new AtomicLong(0);
-        saturated = new AtomicBoolean(false);
-    }
+		}
+		else if (newQueueSize > saturationPoint.get()) {
+			if (saturated.compareAndSet(false, true))
+				return SATURATED;
+		}
 
-    public SaturationStateChange queueSizeChanged(long sizeDelta) {
-        long newQueueSize = queueSize.addAndGet(sizeDelta);
-        if (newQueueSize <= desaturationPoint.get()) {
-            if (saturated.compareAndSet(true, false)) {
-                return DESATURATED;
-            }
-        } else if (newQueueSize > saturationPoint.get()) {
-            if (saturated.compareAndSet(false, true)) {
-                return SATURATED;
-            }
-        }
+		return NO_CHANGE;
+	}
 
-        return NO_CHANGE;
-    }
-
-    public void updateThresholds(long desaturationPoint, long saturationPoint) {
-        this.desaturationPoint.set(desaturationPoint);
-        this.saturationPoint.set(saturationPoint);
-    }
+	public void updateThresholds(long desaturationPoint, long saturationPoint) {
+		this.desaturationPoint.set(desaturationPoint);
+		this.saturationPoint.set(saturationPoint);
+	}
 }

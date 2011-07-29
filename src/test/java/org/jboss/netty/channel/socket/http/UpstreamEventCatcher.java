@@ -29,14 +29,14 @@ import org.jboss.netty.channel.ChannelUpstreamHandler;
  */
 public class UpstreamEventCatcher implements ChannelUpstreamHandler {
 
-    public static final String NAME = "upstreamCatcher";
+	public static final String NAME = "upstreamCatcher";
 
-    public Queue<ChannelEvent> events = new LinkedList<ChannelEvent>();
+	public Queue<ChannelEvent> events = new LinkedList<ChannelEvent>();
 
-    @Override
-    public void handleUpstream(ChannelHandlerContext ctx, ChannelEvent e)
-            throws Exception {
-        events.add(e);
-    }
+	@Override
+	public void handleUpstream(ChannelHandlerContext ctx, ChannelEvent e)
+			throws Exception {
+		events.add(e);
+	}
 
 }

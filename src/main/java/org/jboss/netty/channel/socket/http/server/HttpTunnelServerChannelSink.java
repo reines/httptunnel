@@ -15,15 +15,13 @@
  */
 package org.jboss.netty.channel.socket.http.server;
 
-import java.net.SocketAddress;
+import java.net.InetSocketAddress;
 
 import org.jboss.netty.channel.AbstractChannelSink;
 import org.jboss.netty.channel.ChannelEvent;
-import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelStateEvent;
-import org.jboss.netty.channel.socket.ServerSocketChannel;
+import org.jboss.netty.channel.Channels;
 
 /**
  * @author The Netty Project (netty-dev@lists.jboss.org)
@@ -32,57 +30,39 @@ import org.jboss.netty.channel.socket.ServerSocketChannel;
  */
 class HttpTunnelServerChannelSink extends AbstractChannelSink {
 
-    private ChannelFutureListener closeHook;
+	@Override
+	public void eventSunk(ChannelPipeline pipeline, ChannelEvent e) throws Exception {
+		final HttpTunnelServerChannel channel = (HttpTunnelServerChannel) e.getChannel();
 
-    private ServerSocketChannel realChannel;
+		if (e instanceof ChannelStateEvent) {
+			final ChannelStateEvent event = (ChannelStateEvent) e;
 
-    @Override
-    public void eventSunk(ChannelPipeline pipeline, ChannelEvent e)
-            throws Exception {
+			switch (event.getState()) {
+				case OPEN: {
+					final boolean opened = (Boolean) event.getValue();
+					if (!opened)
+						channel.internalClose(e.getFuture());
 
-        if (e instanceof ChannelStateEvent) {
-            ChannelStateEvent ev = (ChannelStateEvent) e;
-            switch (ev.getState()) {
-            case OPEN:
-                if (Boolean.FALSE.equals(ev.getValue())) {
-                    realChannel.close().addListener(closeHook);
-                }
-                break;
-            case BOUND:
-                if (ev.getValue() != null) {
-                    realChannel.bind((SocketAddress) ev.getValue())
-                            .addListener(new ChannelFutureProxy(e.getFuture()));
-                } else {
-                    realChannel.unbind().addListener(
-                            new ChannelFutureProxy(e.getFuture()));
-                }
-                break;
-            }
-        }
-    }
+					break;
+				}
 
-    private final class ChannelFutureProxy implements ChannelFutureListener {
-        private final ChannelFuture upstreamFuture;
+				case BOUND: {
+					// Unbind
+					if (event.getValue() == null)
+						channel.internalUnbind(event.getFuture());
+					// Attempted to bind to a valid address
+					else if (event.getValue() instanceof InetSocketAddress) {
+						final InetSocketAddress addr = (InetSocketAddress) event.getValue();
+						channel.internalBind(addr, event.getFuture());
+					}
+					else {
+						Exception error = new IllegalArgumentException("Can only bind to an InetSocketAddress");
+						Channels.fireExceptionCaught(channel, error);
+					}
 
-        ChannelFutureProxy(ChannelFuture upstreamFuture) {
-            this.upstreamFuture = upstreamFuture;
-        }
-
-        @Override
-        public void operationComplete(ChannelFuture future) throws Exception {
-            if (future.isSuccess()) {
-                upstreamFuture.setSuccess();
-            } else {
-                upstreamFuture.setFailure(future.getCause());
-            }
-        }
-    }
-
-    public void setRealChannel(ServerSocketChannel realChannel) {
-        this.realChannel = realChannel;
-    }
-
-    public void setCloseListener(ChannelFutureListener closeHook) {
-        this.closeHook = closeHook;
-    }
+					break;
+				}
+			}
+		}
+	}
 }

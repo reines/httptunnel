@@ -29,12 +29,14 @@ import org.jboss.netty.channel.ChannelPipeline;
  */
 public class FakeChannelSink extends AbstractChannelSink {
 
-    public Queue<ChannelEvent> events = new LinkedList<ChannelEvent>();
+	public final Queue<ChannelEvent> events;
 
-    @Override
-    public void eventSunk(ChannelPipeline pipeline, ChannelEvent e)
-            throws Exception {
-        events.add(e);
-    }
+	public FakeChannelSink() {
+		events = new LinkedList<ChannelEvent>();
+	}
 
+	@Override
+	public void eventSunk(ChannelPipeline pipeline, ChannelEvent e) throws Exception {
+		events.add(e);
+	}
 }

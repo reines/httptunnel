@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.MessageEvent;
@@ -14,88 +15,104 @@ import org.jboss.netty.logging.InternalLoggerFactory;
 
 class OpenCloseIncomingChannelHandler extends SimpleChannelHandler {
 
-    private static final InternalLogger logger = InternalLoggerFactory
-            .getInstance(OpenCloseIncomingChannelHandler.class);
+	private static final InternalLogger logger = InternalLoggerFactory.getInstance(OpenCloseIncomingChannelHandler.class);
 
-    private final CountDownLatch openLatch;
-    private final CountDownLatch closeLatch;
-    private final CountDownLatch messageLatch;
+	private final CountDownLatch openLatch;
+	private final CountDownLatch closeLatch;
+	private final CountDownLatch messageLatch;
 
-    OpenCloseIncomingChannelHandler() {
-        openLatch = new CountDownLatch(3);
-        closeLatch = new CountDownLatch(3);
-        messageLatch = new CountDownLatch(1);
-    }
+	private Channel channel;
+	private String messageReceived;
 
-    public void assertSatisfied(int timeout) throws InterruptedException {
-        // Wait for the open events
-        assertTrue("Missed some server open events (" + openLatch + ")", openLatch.await(timeout, TimeUnit.SECONDS));
+	OpenCloseIncomingChannelHandler() {
+		openLatch = new CountDownLatch(3);
+		closeLatch = new CountDownLatch(3);
+		messageLatch = new CountDownLatch(1);
 
-        // Wait for the message event
-        assertTrue("Missed server message received event (" + messageLatch + ")", messageLatch.await(timeout, TimeUnit.SECONDS));
+		channel = null;
+		messageReceived = null;
+	}
 
-        // Wait for the close events
-        assertTrue("Missed some server close events (" + closeLatch + ")", closeLatch.await(timeout, TimeUnit.SECONDS));
-    }
+	Channel getChannel() {
+		return channel;
+	}
 
-    @Override
-    public void channelOpen(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        // First open event
-        if (openLatch.getCount() == 3)
-            openLatch.countDown();
+	String getMessageReceived() {
+		return messageReceived;
+	}
 
-        logger.info("server channelOpen: " + openLatch);
-    }
+	public void assertSatisfied(int timeout) throws InterruptedException {
+		// Wait for the open events
+		assertTrue("Missed some server open events (" + openLatch + ")", openLatch.await(timeout, TimeUnit.SECONDS));
 
-    @Override
-    public void channelBound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        // Second open event
-        if (openLatch.getCount() == 2)
-            openLatch.countDown();
+		// Wait for the message event
+		assertTrue("Missed server message received event (" + messageLatch + ")", messageLatch.await(timeout, TimeUnit.SECONDS));
 
-        logger.info("server channelBound: " + openLatch);
-    }
+		// Wait for the close events
+		assertTrue("Missed some server close events (" + closeLatch + ")", closeLatch.await(timeout, TimeUnit.SECONDS));
+	}
 
-    @Override
-    public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        // Final open event
-        if (openLatch.getCount() == 1)
-            openLatch.countDown();
+	@Override
+	public void channelOpen(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+		logger.info("server channelOpen: " + openLatch);
 
-        logger.info("server channelConnected: " + openLatch);
-    }
+		channel = ctx.getChannel();
 
-    @Override
-    public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        // First close event
-        if (closeLatch.getCount() == 3)
-            closeLatch.countDown();
+		// First open event
+		if (openLatch.getCount() == 3)
+			openLatch.countDown();
+	}
 
-        logger.info("server channelDisconnected: " + closeLatch);
-    }
+	@Override
+	public void channelBound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+		logger.info("server channelBound: " + openLatch);
 
-    @Override
-    public void channelUnbound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        // Second close event
-        if (closeLatch.getCount() == 2)
-            closeLatch.countDown();
+		// Second open event
+		if (openLatch.getCount() == 2)
+			openLatch.countDown();
+	}
 
-        logger.info("server channelUnbound: " + closeLatch);
-    }
+	@Override
+	public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+		logger.info("server channelConnected: " + openLatch);
 
-    @Override
-    public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-        // Final close event
-        if (closeLatch.getCount() == 1)
-            closeLatch.countDown();
+		// Final open event
+		if (openLatch.getCount() == 1)
+			openLatch.countDown();
+	}
 
-        logger.info("server channelClosed: " + closeLatch);
-    }
+	@Override
+	public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+		logger.info("server channelDisconnected: " + closeLatch);
 
-    @Override
-    public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-        messageLatch.countDown();
+		// First close event
+		if (closeLatch.getCount() == 3)
+			closeLatch.countDown();
+	}
 
-        logger.info("server messageReceived: " + messageLatch);
-    }
+	@Override
+	public void channelUnbound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+		logger.info("server channelUnbound: " + closeLatch);
+
+		// Second close event
+		if (closeLatch.getCount() == 2)
+			closeLatch.countDown();
+	}
+
+	@Override
+	public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+		logger.info("server channelClosed: " + closeLatch);
+
+		// Final close event
+		if (closeLatch.getCount() == 1)
+			closeLatch.countDown();
+	}
+
+	@Override
+	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
+		logger.info("server messageReceived: " + messageLatch);
+
+		messageReceived = (String) e.getMessage();
+		messageLatch.countDown();
+	}
 }
