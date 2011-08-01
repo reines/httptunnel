@@ -25,7 +25,7 @@ public class InterestOpsTest {
 	public static final int TIMEOUT = 2;
 
 	@Test
-	public void test() throws InterruptedException {
+	public void testSetUnreadable() throws InterruptedException {
 		final InetSocketAddress addr = new InetSocketAddress("localhost", 8888);
 
 		final ReadableChannelHandler serverHandler = new ReadableChannelHandler();
@@ -47,24 +47,33 @@ public class InterestOpsTest {
 		assertTrue("no client channel", clientHandler.channel != null);
 		assertTrue("no accepted channel", serverHandler.channel != null);
 
+		// Set the server end to be unreadable, this should prevent the message being received until we set it to readable again.
 		assertTrue("unable to set unreadable", serverHandler.channel.setReadable(false).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
+		assertTrue("server channel is readable", !serverHandler.channel.isReadable());
 
-		final String message = "hello world";
+		// Send a test message
+		clientHandler.channel.write("hello world").awaitUninterruptibly();
 
-		clientHandler.channel.write(message).awaitUninterruptibly();
-
+		// Wait and check it was sent correctly
 		assertTrue("failed to write message", clientHandler.writtenLatch.await(TIMEOUT, TimeUnit.SECONDS));
 
+		// Give the message some time to be delivered
 		Thread.sleep(1000);
 
+		// Check it hasn't been received - since the server end is unreadable it shouldn't be!
 		assertTrue("server received message before readable", serverHandler.receivedLatch.getCount() == 1);
 
+		// Set the server end of readable, the message should be delivered after this...
 		assertTrue("unable to set readable", serverHandler.channel.setReadable(true).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
+		assertTrue("server channel is unreadable", serverHandler.channel.isReadable());
 
+		// Give the message some time to be delivered
 		Thread.sleep(1000);
 
+		// Check that the message was indeed delivered
 		assertTrue("failed to receive message", serverHandler.receivedLatch.await(TIMEOUT, TimeUnit.SECONDS));
 
+		// Shut down both ends
 		server.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
 		client.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
 	}

@@ -33,6 +33,7 @@ import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.SocketChannel;
 import org.jboss.netty.channel.socket.http.BindState;
 import org.jboss.netty.channel.socket.http.ConnectState;
+import org.jboss.netty.channel.socket.http.IncomingBuffer;
 import org.jboss.netty.channel.socket.http.SaturationManager;
 import org.jboss.netty.channel.socket.http.SaturationStateChange;
 import org.jboss.netty.channel.socket.http.util.ConsolidatingFutureListener;
@@ -74,6 +75,7 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 	private volatile InetSocketAddress remoteAddress;
 
 	private final WorkerCallbacks callbackProxy;
+	private final IncomingBuffer<ChannelBuffer> incomingBuffer;
 
 	/**
 	 * @see HttpTunnelClientChannelFactory#newChannel(ChannelPipeline)
@@ -82,6 +84,9 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		super (null, factory, pipeline, sink);
 
 		callbackProxy = new WorkerCallbacks();
+
+		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this);
+		incomingBuffer.start();
 
 		sendChannel = outboundFactory.newChannel(this.createSendPipeline());
 		pollChannel = outboundFactory.newChannel(this.createPollPipeline());;
@@ -417,6 +422,9 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		super.setInterestOpsNow(ops);
 		Channels.fireChannelInterestChanged(this);
 
+		// Update the incoming buffer
+		incomingBuffer.onInterestOpsChanged();
+
 		future.setSuccess();
 		return future;
 	}
@@ -534,8 +542,27 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		}
 
 		@Override
-		public void onMessageReceived(ChannelBuffer content) {
-			Channels.fireMessageReceived(HttpTunnelClientChannel.this, content);
+		public void onMessageReceived(ChannelBuffer message) {
+			if (!opened.get()) {
+				if (LOG.isWarnEnabled())
+					LOG.warn("Received message while channel is closed");
+
+				return;
+			}
+
+			// Attempt to queue this message in the incoming buffer
+			if (!incomingBuffer.offer(message)) {
+				if (LOG.isWarnEnabled())
+					LOG.warn("Incoming buffer rejected message, dropping");
+
+				return;
+			}
+
+			// If the buffer is over capacity start congestion control
+			if (incomingBuffer.overCapacity()) {
+				// TODO: Send a "stop sending shit" message!
+				// TODO: What about when to send the "start sending shit again" message?
+			}
 		}
 
 		@Override

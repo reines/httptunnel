@@ -33,6 +33,7 @@ import org.jboss.netty.channel.ChannelSink;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.socket.SocketChannel;
+import org.jboss.netty.channel.socket.http.IncomingBuffer;
 import org.jboss.netty.channel.socket.http.SaturationManager;
 import org.jboss.netty.channel.socket.http.SaturationStateChange;
 import org.jboss.netty.channel.socket.http.util.ChannelFutureAggregator;
@@ -70,6 +71,7 @@ class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel
 
 	private final AtomicReference<Channel> pollChannel;
 	private final Queue<QueuedResponse> queuedResponses;
+	private final IncomingBuffer<ChannelBuffer> incomingBuffer;
 
 	protected HttpTunnelAcceptedChannel(HttpTunnelServerChannel parent, ChannelFactory factory, ChannelPipeline pipeline, ChannelSink sink, InetSocketAddress remoteAddress, String tunnelId) {
 		super (parent, factory, pipeline, sink);
@@ -87,6 +89,9 @@ class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel
 
 		pollChannel = new AtomicReference<Channel>(null);
 		queuedResponses = new ConcurrentLinkedQueue<QueuedResponse>();
+
+		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this);
+		incomingBuffer.start();
 	}
 
 	String getTunnelId() {
@@ -154,15 +159,34 @@ class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel
 		super.setInterestOpsNow(ops);
 		Channels.fireChannelInterestChanged(this);
 
+		// Update the incoming buffer
+		incomingBuffer.onInterestOpsChanged();
+
 		future.setSuccess();
 		return future;
 	}
 
-	synchronized void internalReceiveMessage(ChannelBuffer messageBuffer) {
-		if (!opened.get())
-			return;
+	synchronized void internalReceiveMessage(ChannelBuffer message) {
+		if (!opened.get()) {
+			if (LOG.isWarnEnabled())
+				LOG.warn("Received message while channel is closed");
 
-		Channels.fireMessageReceived(this, messageBuffer);
+			return;
+		}
+
+		// Attempt to queue this message in the incoming buffer
+		if (!incomingBuffer.offer(message)) {
+			if (LOG.isWarnEnabled())
+				LOG.warn("Incoming buffer rejected message, dropping");
+
+			return;
+		}
+
+		// If the buffer is over capacity start congestion control
+		if (incomingBuffer.overCapacity()) {
+			// TODO: Send a "stop sending shit" message!
+			// TODO: What about when to send the "start sending shit again" message?
+		}
 	}
 
 	synchronized ChannelFuture sendMessage(MessageEvent message) {
