@@ -81,7 +81,6 @@ public class IncomingBuffer<T> implements Runnable {
 				try { this.wait(); } catch (InterruptedException e) { }
 			}
 
-			System.out.println("processing message");
 			Channels.fireMessageReceived(channel, buffer.poll());
 		 }
 	}
