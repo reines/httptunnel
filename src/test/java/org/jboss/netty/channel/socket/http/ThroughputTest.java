@@ -25,6 +25,7 @@ import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.http.client.HttpTunnelClientChannelFactory;
 import org.jboss.netty.channel.socket.http.server.HttpTunnelServerChannelFactory;
+import org.jboss.netty.channel.socket.http.util.NettyTestUtils;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.junit.Ignore;
@@ -35,47 +36,6 @@ public class ThroughputTest {
 	public static final int DATA_AMOUNT = 1024; // 1Gb
 	public static final int TIMEOUT = 2;
 
-	private Channel createServerChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory) {
-		// TCP socket factory
-		ServerSocketChannelFactory socketFactory = new NioServerSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
-
-		// HTTP socket factory
-		socketFactory = new HttpTunnelServerChannelFactory(socketFactory);
-
-		final ServerBootstrap bootstrap = new ServerBootstrap(socketFactory);
-		bootstrap.setPipelineFactory(pipelineFactory);
-
-		bootstrap.setOption("child.tcpNoDelay", true);
-		bootstrap.setOption("reuseAddress", true);
-
-		return bootstrap.bind(addr);
-	}
-
-	private Channel createClientChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory) {
-		// TCP socket factory
-		ClientSocketChannelFactory socketFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
-
-		// HTTP socket factory
-		socketFactory = new HttpTunnelClientChannelFactory(socketFactory);
-
-		final ClientBootstrap bootstrap = new ClientBootstrap(socketFactory);
-		bootstrap.setPipelineFactory(pipelineFactory);
-
-		bootstrap.setOption("tcpNoDelay", true);
-
-		final ChannelFuture future = bootstrap.connect(addr);
-
-		try { future.await(TIMEOUT, TimeUnit.SECONDS); } catch (InterruptedException e) { }
-
-		// If we managed to connect then set the channel and type
-		if (future.isSuccess())
-			return future.getChannel();
-
-		// Otherwise cancel the attempt and give up
-		future.cancel();
-		return null;
-	}
-
 	// Ignored because really doing this over the loopback interface means nothing
 	// This needs converted to run over multiple machines rather than as a unit test
 	@Test @Ignore
@@ -83,7 +43,7 @@ public class ThroughputTest {
 		final InetSocketAddress addr = new InetSocketAddress("localhost", 8888);
 
 		final ThroughputChannelHandler serverHandler = new ThroughputChannelHandler();
-		final Channel server = this.createServerChannel(addr, new ChannelPipelineFactory() {
+		final Channel server = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {
 			@Override
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(serverHandler);
@@ -91,12 +51,12 @@ public class ThroughputTest {
 		});
 
 		final ThroughputChannelHandler clientHandler = new ThroughputChannelHandler();
-		final Channel client = this.createClientChannel(addr, new ChannelPipelineFactory() {
+		final Channel client = NettyTestUtils.createClientChannel(addr, new ChannelPipelineFactory() {
 			@Override
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(clientHandler);
 			}
-		});
+		}, TIMEOUT);
 
 		assertTrue("no client channel", clientHandler.channel != null);
 		assertTrue("no accepted channel", serverHandler.channel != null);
@@ -137,6 +97,7 @@ public class ThroughputTest {
 		private long write;
 
 		public ThroughputChannelHandler() {
+			channel = null;
 			read = 0;
 			write = 0;
 		}

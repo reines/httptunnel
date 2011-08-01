@@ -27,17 +27,30 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import junit.framework.Assert;
 
+import org.jboss.netty.bootstrap.ClientBootstrap;
+import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelEvent;
+import org.jboss.netty.channel.ChannelFuture;
+import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.ChannelState;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.DownstreamMessageEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.UpstreamMessageEvent;
+import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
+import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
+import org.jboss.netty.channel.socket.http.client.HttpTunnelClientChannelFactory;
+import org.jboss.netty.channel.socket.http.server.HttpTunnelServerChannelFactory;
+import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
+import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 
 /**
  * @author The Netty Project (netty-dev@lists.jboss.org)
@@ -180,5 +193,46 @@ public class NettyTestUtils {
 		Assert.assertEquals(expectedState, stateEvent.getState());
 		Assert.assertEquals(expectedValue, stateEvent.getValue());
 		return stateEvent;
+	}
+
+	public static Channel createServerChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory) {
+		// TCP socket factory
+		ServerSocketChannelFactory socketFactory = new NioServerSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
+
+		// HTTP socket factory
+		socketFactory = new HttpTunnelServerChannelFactory(socketFactory);
+
+		final ServerBootstrap bootstrap = new ServerBootstrap(socketFactory);
+		bootstrap.setPipelineFactory(pipelineFactory);
+
+		bootstrap.setOption("child.tcpNoDelay", true);
+		bootstrap.setOption("reuseAddress", true);
+
+		return bootstrap.bind(addr);
+	}
+
+	public static Channel createClientChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory, int timeout) {
+		// TCP socket factory
+		ClientSocketChannelFactory socketFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
+
+		// HTTP socket factory
+		socketFactory = new HttpTunnelClientChannelFactory(socketFactory);
+
+		final ClientBootstrap bootstrap = new ClientBootstrap(socketFactory);
+		bootstrap.setPipelineFactory(pipelineFactory);
+
+		bootstrap.setOption("tcpNoDelay", true);
+
+		final ChannelFuture future = bootstrap.connect(addr);
+
+		try { future.await(timeout, TimeUnit.SECONDS); } catch (InterruptedException e) { }
+
+		// If we managed to connect then set the channel and type
+		if (future.isSuccess())
+			return future.getChannel();
+
+		// Otherwise cancel the attempt and give up
+		future.cancel();
+		return null;
 	}
 }
