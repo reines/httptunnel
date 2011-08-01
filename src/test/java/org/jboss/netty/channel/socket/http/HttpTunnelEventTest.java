@@ -4,22 +4,13 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.jboss.netty.bootstrap.ClientBootstrap;
-import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
-import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
-import org.jboss.netty.channel.socket.http.client.HttpTunnelClientChannelFactory;
-import org.jboss.netty.channel.socket.http.server.HttpTunnelServerChannelFactory;
-import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
-import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
+import org.jboss.netty.channel.socket.http.util.NettyTestUtils;
 import org.jboss.netty.handler.codec.string.StringDecoder;
 import org.jboss.netty.handler.codec.string.StringEncoder;
 import org.junit.After;
@@ -37,53 +28,12 @@ public class HttpTunnelEventTest {
 	private Channel clientChannel;
 	private Channel acceptedChannel;
 
-	private Channel createServerChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory) {
-		// TCP socket factory
-		ServerSocketChannelFactory socketFactory = new NioServerSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
-
-		// HTTP socket factory
-		socketFactory = new HttpTunnelServerChannelFactory(socketFactory);
-
-		final ServerBootstrap bootstrap = new ServerBootstrap(socketFactory);
-		bootstrap.setPipelineFactory(pipelineFactory);
-
-		bootstrap.setOption("child.tcpNoDelay", true);
-		bootstrap.setOption("reuseAddress", true);
-
-		return bootstrap.bind(addr);
-	}
-
-	private Channel createClientChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory) {
-		// TCP socket factory
-		ClientSocketChannelFactory socketFactory = new NioClientSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool());
-
-		// HTTP socket factory
-		socketFactory = new HttpTunnelClientChannelFactory(socketFactory);
-
-		final ClientBootstrap bootstrap = new ClientBootstrap(socketFactory);
-		bootstrap.setPipelineFactory(pipelineFactory);
-
-		bootstrap.setOption("tcpNoDelay", true);
-
-		final ChannelFuture future = bootstrap.connect(addr);
-
-		try { future.await(TIMEOUT, TimeUnit.SECONDS); } catch (InterruptedException e) { }
-
-		// If we managed to connect then set the channel and type
-		if (future.isSuccess())
-			return future.getChannel();
-
-		// Otherwise cancel the attempt and give up
-		future.cancel();
-		return null;
-	}
-
 	@Before
 	public void setUp() throws InterruptedException {
 		final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
 
 		serverHandler = new OpenCloseIncomingChannelHandler();
-		serverChannel = this.createServerChannel(addr, new ChannelPipelineFactory() {
+		serverChannel = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {
 			@Override
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(new StringEncoder(), new StringDecoder(), serverHandler);
@@ -95,12 +45,12 @@ public class HttpTunnelEventTest {
 		assertTrue("server isn't bound after connect", serverChannel.isBound());
 
 		clientHandler = new OpenCloseOutgoingChannelHandler();
-		clientChannel = this.createClientChannel(addr, new ChannelPipelineFactory() {
+		clientChannel = NettyTestUtils.createClientChannel(addr, new ChannelPipelineFactory() {
 			@Override
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(new StringEncoder(), new StringDecoder(), clientHandler);
 			}
-		});
+		}, TIMEOUT);
 
 		// Check we actually managed to connect
 		assertTrue("failed to connect", clientChannel != null);
