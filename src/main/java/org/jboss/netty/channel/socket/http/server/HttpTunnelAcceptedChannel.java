@@ -19,6 +19,7 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -90,7 +91,7 @@ class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel
 		pollChannel = new AtomicReference<Channel>(null);
 		queuedResponses = new ConcurrentLinkedQueue<QueuedResponse>();
 
-		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this);
+		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this, Executors.newSingleThreadExecutor());
 		incomingBuffer.start();
 	}
 

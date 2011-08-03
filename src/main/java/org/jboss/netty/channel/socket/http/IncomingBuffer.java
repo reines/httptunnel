@@ -2,6 +2,7 @@ package org.jboss.netty.channel.socket.http;
 
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.Executor;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.Channels;
@@ -12,22 +13,24 @@ public class IncomingBuffer<T> implements Runnable {
 	public static final int DEFAULT_BOUNDS = Integer.MAX_VALUE;
 
 	private final Channel channel;
+	private final Executor messageExecutor;
 	private final Queue<T> buffer;
 	private final Thread thread;
 
 	private int capacity;
 	private int bounds;
 
-	public IncomingBuffer(Channel channel) {
-		this (channel, DEFAULT_CAPACITY);
+	public IncomingBuffer(Channel channel, Executor messageExecutor) {
+		this (channel, messageExecutor, DEFAULT_CAPACITY);
 	}
 
-	public IncomingBuffer(Channel channel, int capacity) {
-		this (channel, capacity, DEFAULT_BOUNDS);
+	public IncomingBuffer(Channel channel, Executor messageExecutor, int capacity) {
+		this (channel, messageExecutor, capacity, DEFAULT_BOUNDS);
 	}
 
-	public IncomingBuffer(Channel channel, int capacity, int bounds) {
+	public IncomingBuffer(Channel channel, Executor messageExecutor, int capacity, int bounds) {
 		this.channel = channel;
+		this.messageExecutor = messageExecutor;
 		this.capacity = capacity;
 		this.bounds = bounds;
 
@@ -81,7 +84,13 @@ public class IncomingBuffer<T> implements Runnable {
 				try { this.wait(); } catch (InterruptedException e) { }
 			}
 
-			Channels.fireMessageReceived(channel, buffer.poll());
+			final T item = buffer.poll();
+			messageExecutor.execute(new Runnable() {
+				@Override
+				public void run() {
+					Channels.fireMessageReceived(channel, item);
+				}
+			});
 		 }
 	}
 }

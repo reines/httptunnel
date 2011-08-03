@@ -17,6 +17,7 @@ package org.jboss.netty.channel.socket.http.client;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -85,7 +86,7 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 
 		callbackProxy = new WorkerCallbacks();
 
-		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this);
+		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this, Executors.newSingleThreadExecutor());
 		incomingBuffer.start();
 
 		sendChannel = outboundFactory.newChannel(this.createSendPipeline());
