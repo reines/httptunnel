@@ -16,6 +16,7 @@
 package org.jboss.netty.channel.socket.http.server;
 
 import java.net.InetSocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -260,6 +261,11 @@ class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel
 
 		final HttpResponse response = HttpTunnelMessageUtils.createRecvDataResponse(messageToSend.getData());
 		final ChannelFuture future = messageToSend.getFuture();
+
+		if (!channel.isConnected()) {
+			future.setFailure(new ClosedChannelException());
+			return;
+		}
 
 		Channels.write(channel, response).addListener(new ForwardingFutureListener(future));
 	}

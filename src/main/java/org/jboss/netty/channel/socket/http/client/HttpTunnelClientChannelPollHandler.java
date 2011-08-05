@@ -87,6 +87,9 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 	}
 
 	private void sendPoll(Channel channel) {
+		if (!channel.isConnected())
+			return;
+
 		pollTime = System.nanoTime();
 		if (LOG.isDebugEnabled())
 			LOG.debug("sending poll request for tunnel " + tunnelId);
