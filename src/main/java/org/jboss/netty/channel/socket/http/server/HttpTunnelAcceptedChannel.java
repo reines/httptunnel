@@ -245,7 +245,7 @@ class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel
 	synchronized void sendQueuedData() {
 		final Channel channel = pollChannel.getAndSet(null);
 		// no response channel, or another thread has already used it
-		if (channel == null)
+		if (channel == null || !channel.isOpen())
 			return;
 
 		final QueuedResponse messageToSend = queuedResponses.poll();

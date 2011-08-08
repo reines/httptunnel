@@ -87,6 +87,10 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 	}
 
 	private void sendPoll(Channel channel) {
+		// If the channel is closed then don't bother
+		if (!channel.isOpen())
+			return;
+
 		pollTime = System.nanoTime();
 		if (LOG.isDebugEnabled())
 			LOG.debug("sending poll request for tunnel " + tunnelId);
