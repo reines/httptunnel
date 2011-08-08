@@ -7,6 +7,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import org.jboss.netty.channel.Channel;
+import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
@@ -78,6 +79,47 @@ public class HttpTunnelEventTest {
 
 		if (acceptedChannel != null && acceptedChannel.isOpen())
 			acceptedChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
+	}
+
+	@Test
+	public void testReadable() throws InterruptedException {
+		assertTrue("client channel not readable", clientChannel.isReadable());
+		assertTrue("client channel not writable", clientChannel.isWritable());
+
+		assertTrue("accepted channel not readable", acceptedChannel.isReadable());
+		assertTrue("accepted channel not writable", acceptedChannel.isWritable());
+
+		assertTrue("failed to set accepted channel unreadable", acceptedChannel.setReadable(false).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
+
+		assertTrue("client channel not readable", clientChannel.isReadable());
+		assertTrue("client channel not writable", clientChannel.isWritable());
+
+		assertTrue("accepted channel readable", !acceptedChannel.isReadable());
+		assertTrue("accepted channel not writable", acceptedChannel.isWritable());
+
+		// Send a test message
+		final String message = "hello world";
+
+		final ChannelFuture future = clientChannel.write(message);
+		assertTrue("failed to send message", future.awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
+
+		// Give a second for the message to reach the server
+		Thread.sleep(1000);
+
+		assertEquals("received message while unreadable", serverHandler.getMessageReceived(), null);
+
+		assertTrue("failed to set accepted channel readable", acceptedChannel.setReadable(true).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
+
+		assertTrue("client channel not readable", clientChannel.isReadable());
+		assertTrue("client channel not writable", clientChannel.isWritable());
+
+		assertTrue("accepted channel not readable", acceptedChannel.isReadable());
+		assertTrue("accepted channel not writable", acceptedChannel.isWritable());
+
+		// Give a second for the message to reach the server
+		Thread.sleep(1000);
+
+		assertEquals("the received message doesn't match the sent message", message, serverHandler.getMessageReceived());
 	}
 
 	/**
