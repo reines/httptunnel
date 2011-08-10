@@ -37,6 +37,12 @@ public class MockChannelStateListener implements HttpTunnelClientWorkerOwner {
 
 	public String serverHostName = null;
 
+	private final String userAgent;
+
+	public MockChannelStateListener(String userAgent) {
+		this.userAgent = userAgent;
+	}
+
 	@Override
 	public void fullyEstablished() {
 		fullyEstablished = true;
@@ -70,5 +76,10 @@ public class MockChannelStateListener implements HttpTunnelClientWorkerOwner {
 	@Override
 	public void onDisconnectRequest(ChannelFuture connectFuture) {
 		// not relevant for test
+	}
+
+	@Override
+	public String getUserAgent() {
+		return userAgent;
 	}
 }

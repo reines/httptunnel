@@ -580,5 +580,9 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 			return serverHostName;
 		}
 
+		@Override
+		public String getUserAgent() {
+			return config.getUserAgent();
+		}
 	}
 }

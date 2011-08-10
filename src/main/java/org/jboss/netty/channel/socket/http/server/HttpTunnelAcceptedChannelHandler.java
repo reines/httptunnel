@@ -47,9 +47,12 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 	private static final InternalLogger LOG = InternalLoggerFactory.getInstance(HttpTunnelAcceptedChannelHandler.class);
 
 	private final HttpTunnelServerChannel parent;
+	private final String userAgent;
 
 	public HttpTunnelAcceptedChannelHandler(HttpTunnelServerChannel parent) {
 		this.parent = parent;
+
+		userAgent = parent.getConfig().getUserAgent();
 	}
 
 	@Override
@@ -58,16 +61,16 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 
 		try {
 			// send channel
-			if (HttpTunnelMessageUtils.isOpenTunnelRequest(request))
+			if (HttpTunnelMessageUtils.isOpenTunnelRequest(request, userAgent))
 				handleOpenTunnel(ctx);
 			// send channel
-			else if (HttpTunnelMessageUtils.isSendDataRequest(request))
+			else if (HttpTunnelMessageUtils.isSendDataRequest(request, userAgent))
 				handleSendData(ctx, request);
 			// poll channel
-			else if (HttpTunnelMessageUtils.isReceiveDataRequest(request))
+			else if (HttpTunnelMessageUtils.isReceiveDataRequest(request, userAgent))
 				handleReceiveData(ctx, request);
 			// send channel
-			else if (HttpTunnelMessageUtils.isCloseTunnelRequest(request))
+			else if (HttpTunnelMessageUtils.isCloseTunnelRequest(request, userAgent))
 				handleCloseTunnel(ctx, request);
 			else
 				throw new IllegalArgumentException("invalid request to netty HTTP tunnel gateway");

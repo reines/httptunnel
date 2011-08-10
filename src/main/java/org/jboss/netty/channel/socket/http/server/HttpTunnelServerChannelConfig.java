@@ -25,6 +25,9 @@ import org.jboss.netty.channel.socket.http.util.TunnelIdGenerator;
  */
 public interface HttpTunnelServerChannelConfig extends ServerSocketChannelConfig {
 
+	public void setUserAgent(String userAgent);
+	public String getUserAgent();
+
 	public void setTunnelIdGenerator(TunnelIdGenerator tunnelIdGenerator);
 	public TunnelIdGenerator getTunnelIdGenerator();
 }

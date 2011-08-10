@@ -81,4 +81,6 @@ interface HttpTunnelClientWorkerOwner {
 	 *         HOST string is used to route the request.
 	 */
 	public String getServerHostName();
+
+	public String getUserAgent();
 }

@@ -32,7 +32,6 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.DownstreamMessageEvent;
 import org.jboss.netty.channel.socket.http.FakeChannelSink;
 import org.jboss.netty.channel.socket.http.FakeSocketChannel;
-import org.jboss.netty.channel.socket.http.client.HttpTunnelClientChannelSendHandler;
 import org.jboss.netty.channel.socket.http.util.HttpTunnelMessageUtils;
 import org.jboss.netty.channel.socket.http.util.NettyTestUtils;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
@@ -45,6 +44,8 @@ import org.junit.Test;
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  */
 public class HttpTunnelClientSendHandlerTest {
+
+	private static final String USER_AGENT = "test";
 
 	private static final InetSocketAddress SERVER_ADDRESS = createAddress(
 			new byte[] { 10, 0, 0, 3 }, 12345);
@@ -67,7 +68,7 @@ public class HttpTunnelClientSendHandlerTest {
 	public void setUp() {
 		sink = new FakeChannelSink();
 		ChannelPipeline pipeline = Channels.pipeline();
-		listener = new MockChannelStateListener();
+		listener = new MockChannelStateListener(USER_AGENT);
 		listener.serverHostName = HttpTunnelMessageUtils
 				.convertToHostString(SERVER_ADDRESS);
 		handler = new HttpTunnelClientChannelSendHandler(listener);
@@ -91,7 +92,7 @@ public class HttpTunnelClientSendHandlerTest {
 		assertEquals(1, sink.events.size());
 		HttpRequest request = NettyTestUtils.checkIsDownstreamMessageEvent(
 				sink.events.poll(), HttpRequest.class);
-		assertTrue(HttpTunnelMessageUtils.isOpenTunnelRequest(request));
+		assertTrue(HttpTunnelMessageUtils.isOpenTunnelRequest(request, USER_AGENT));
 		assertTrue(HttpTunnelMessageUtils.checkHost(request, SERVER_ADDRESS));
 	}
 
@@ -160,7 +161,7 @@ public class HttpTunnelClientSendHandlerTest {
 
 		HttpRequest request = NettyTestUtils.checkIsDownstreamMessageEvent(
 				sink.events.poll(), HttpRequest.class);
-		assertTrue(HttpTunnelMessageUtils.isCloseTunnelRequest(request));
+		assertTrue(HttpTunnelMessageUtils.isCloseTunnelRequest(request, USER_AGENT));
 		assertEquals("newTunnel",
 				HttpTunnelMessageUtils.extractTunnelId(request));
 		Channels.fireMessageReceived(channel,
@@ -178,7 +179,7 @@ public class HttpTunnelClientSendHandlerTest {
 		assertEquals(1, sink.events.size());
 		HttpRequest request = NettyTestUtils.checkIsDownstreamMessageEvent(
 				sink.events.poll(), HttpRequest.class);
-		assertTrue(HttpTunnelMessageUtils.isCloseTunnelRequest(request));
+		assertTrue(HttpTunnelMessageUtils.isCloseTunnelRequest(request, USER_AGENT));
 		assertEquals("newTunnel",
 				HttpTunnelMessageUtils.extractTunnelId(request));
 		Channels.fireMessageReceived(channel,
@@ -202,7 +203,7 @@ public class HttpTunnelClientSendHandlerTest {
 		DownstreamMessageEvent messageEvent = (DownstreamMessageEvent) event;
 		assertTrue(messageEvent.getMessage() instanceof HttpRequest);
 		HttpRequest request = (HttpRequest) messageEvent.getMessage();
-		assertTrue(HttpTunnelMessageUtils.isSendDataRequest(request));
+		assertTrue(HttpTunnelMessageUtils.isSendDataRequest(request, USER_AGENT));
 		assertEquals(data.readableBytes(),
 				HttpHeaders.getContentLength(request));
 

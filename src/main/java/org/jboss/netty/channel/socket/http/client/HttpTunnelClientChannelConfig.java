@@ -52,6 +52,9 @@ import org.jboss.netty.channel.socket.http.HttpTunnelChannelConfig;
  */
 public interface HttpTunnelClientChannelConfig extends HttpTunnelChannelConfig {
 
+	public void setUserAgent(String userAgent);
+	public String getUserAgent();
+
 	/**
 	 * Specify a proxy to be used for the http tunnel. If this is null, then no
 	 * proxy should be used, otherwise this should be a directly accessible

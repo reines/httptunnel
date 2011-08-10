@@ -81,7 +81,7 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 		if (LOG.isDebugEnabled())
 			LOG.debug("connection to " + e.getValue() + " succeeded - sending open tunnel request");
 
-		final HttpRequest request = HttpTunnelMessageUtils.createOpenTunnelRequest(tunnelChannel.getServerHostName());
+		final HttpRequest request = HttpTunnelMessageUtils.createOpenTunnelRequest(tunnelChannel.getServerHostName(), tunnelChannel.getUserAgent());
 		final Channel channel = ctx.getChannel();
 		final DownstreamMessageEvent event = new DownstreamMessageEvent(channel, Channels.future(channel), request, channel.getRemoteAddress());
 
@@ -143,7 +143,7 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 			if (LOG.isDebugEnabled())
 				LOG.debug("sending close request for tunnel " + tunnelId);
 
-			final HttpRequest closeRequest = HttpTunnelMessageUtils.createCloseTunnelRequest(tunnelChannel.getServerHostName(), tunnelId);
+			final HttpRequest closeRequest = HttpTunnelMessageUtils.createCloseTunnelRequest(tunnelChannel.getServerHostName(), tunnelId, tunnelChannel.getUserAgent());
 			Channels.write(ctx, Channels.future(ctx.getChannel()), closeRequest);
 		}
 		else {
@@ -174,7 +174,7 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 		}
 
 		final ChannelBuffer data = (ChannelBuffer) e.getMessage();
-		final HttpRequest request = HttpTunnelMessageUtils.createSendDataRequest(tunnelChannel.getServerHostName(), tunnelId, data);
+		final HttpRequest request = HttpTunnelMessageUtils.createSendDataRequest(tunnelChannel.getServerHostName(), tunnelId, data, tunnelChannel.getUserAgent());
 
 		final Channel channel = ctx.getChannel();
 		final DownstreamMessageEvent translatedEvent = new DownstreamMessageEvent(channel, future, request, channel.getRemoteAddress());

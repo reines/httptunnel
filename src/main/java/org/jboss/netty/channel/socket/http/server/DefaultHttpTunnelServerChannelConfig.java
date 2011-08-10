@@ -12,22 +12,30 @@ import org.jboss.netty.channel.socket.http.util.TunnelIdGenerator;
 
 public class DefaultHttpTunnelServerChannelConfig implements HttpTunnelServerChannelConfig {
 
+	public static final String DEFAULT_USER_AGENT = "HttpTunnelClient";
+
 	public static final String PIPELINE_FACTORY_OPTION = "pipelineFactory";
 	public static final String TUNNEL_ID_GENERATOR_OPTION = "tunnelIdGenerator";
+	public static final String USER_AGENT_OPTION = "userAgent";
 
-	private final ServerSocketChannel realChannel;
-
+	private ServerSocketChannel realChannel;
 	private TunnelIdGenerator tunnelIdGenerator;
+	private String userAgent;
 	private ChannelPipelineFactory pipelineFactory;
 
-	public DefaultHttpTunnelServerChannelConfig(ServerSocketChannel realChannel) {
-		this.realChannel = realChannel;
-
+	public DefaultHttpTunnelServerChannelConfig() {
+		realChannel = null;
 		tunnelIdGenerator = new DefaultTunnelIdGenerator();
+
+		userAgent = DEFAULT_USER_AGENT;
 		pipelineFactory = null;
 	}
 
-	private ServerSocketChannelConfig getWrappedConfig() {
+	void setRealChannel(ServerSocketChannel realChannel) {
+		this.realChannel = realChannel;
+	}
+
+	ServerSocketChannelConfig getWrappedConfig() {
 		return realChannel.getConfig();
 	}
 
@@ -92,6 +100,16 @@ public class DefaultHttpTunnelServerChannelConfig implements HttpTunnelServerCha
 	}
 
 	@Override
+	public String getUserAgent() {
+		return userAgent;
+	}
+
+	@Override
+	public void setUserAgent(String userAgent) {
+		this.userAgent = userAgent;
+	}
+
+	@Override
 	public TunnelIdGenerator getTunnelIdGenerator() {
 		return tunnelIdGenerator;
 	}
@@ -108,13 +126,18 @@ public class DefaultHttpTunnelServerChannelConfig implements HttpTunnelServerCha
 
 	@Override
 	public boolean setOption(String key, Object value) {
-		if (PIPELINE_FACTORY_OPTION.equals(key)) {
+		if (PIPELINE_FACTORY_OPTION.equalsIgnoreCase(key)) {
 			this.setPipelineFactory((ChannelPipelineFactory) value);
 			return true;
 		}
 
-		if (TUNNEL_ID_GENERATOR_OPTION.equals(key)) {
+		if (TUNNEL_ID_GENERATOR_OPTION.equalsIgnoreCase(key)) {
 			this.setTunnelIdGenerator((TunnelIdGenerator) value);
+			return true;
+		}
+
+		if (USER_AGENT_OPTION.equalsIgnoreCase(key)) {
+			this.setUserAgent((String) value);
 			return true;
 		}
 

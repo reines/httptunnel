@@ -51,7 +51,7 @@ public class HttpTunnelServerChannel extends AbstractServerChannel implements Se
 	private final String tunnelIdPrefix;
 	private final ConcurrentHashMap<String, HttpTunnelAcceptedChannel> tunnels;
 	private final ServerSocketChannel realChannel;
-	private final HttpTunnelServerChannelConfig config;
+	private final DefaultHttpTunnelServerChannelConfig config;
 	private final ExecutorService bossExecutor;
 	private final ExecutorService workerExecutor;
 
@@ -67,9 +67,9 @@ public class HttpTunnelServerChannel extends AbstractServerChannel implements Se
 		tunnelIdPrefix = Long.toHexString(new Random().nextLong());
 		tunnels = new ConcurrentHashMap<String, HttpTunnelAcceptedChannel>();
 
+		config = new DefaultHttpTunnelServerChannelConfig();
 		realChannel = inboundFactory.newChannel(this.createRealPipeline(realConnections));
-
-		config = new DefaultHttpTunnelServerChannelConfig(realChannel);
+		config.setRealChannel(realChannel);
 
 		opened = new AtomicBoolean(true);
 		bindState = new AtomicReference<BindState>(BindState.UNBOUND);

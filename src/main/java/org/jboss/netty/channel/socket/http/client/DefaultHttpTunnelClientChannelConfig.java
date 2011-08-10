@@ -7,17 +7,22 @@ import org.jboss.netty.channel.socket.http.DefaultHttpTunnelChannelConfig;
 
 public class DefaultHttpTunnelClientChannelConfig extends DefaultHttpTunnelChannelConfig implements HttpTunnelClientChannelConfig {
 
+	public static final String DEFAULT_USER_AGENT = "HttpTunnelClient";
+
 	public static final String PROXY_ADDRESS_OPTION = "proxyAddress";
+	public static final String USER_AGENT_OPTION = "userAgent";
 
 	private final SocketChannelConfig sendChannelConfig;
 	private final SocketChannelConfig pollChannelConfig;
 
-	private volatile SocketAddress proxyAddress;
+	private String userAgent;
+	private SocketAddress proxyAddress;
 
 	public DefaultHttpTunnelClientChannelConfig(SocketChannelConfig sendChannelConfig, SocketChannelConfig pollChannelConfig) {
 		this.sendChannelConfig = sendChannelConfig;
 		this.pollChannelConfig = pollChannelConfig;
 
+		userAgent = DEFAULT_USER_AGENT;
 		proxyAddress = null;
 	}
 
@@ -27,12 +32,27 @@ public class DefaultHttpTunnelClientChannelConfig extends DefaultHttpTunnelChann
 	// Mostly SSL, virtual host, and URL prefix
 	@Override
 	public boolean setOption(String key, Object value) {
-		if (PROXY_ADDRESS_OPTION.equals(key)) {
+		if (PROXY_ADDRESS_OPTION.equalsIgnoreCase(key)) {
 			this.setProxyAddress((SocketAddress) value);
 			return true;
 		}
 
+		if (USER_AGENT_OPTION.equalsIgnoreCase(key)) {
+			this.setUserAgent((String) value);
+			return true;
+		}
+
 		return super.setOption(key, value);
+	}
+
+	@Override
+	public String getUserAgent() {
+		return userAgent;
+	}
+
+	@Override
+	public void setUserAgent(String userAgent) {
+		this.userAgent = userAgent;
 	}
 
 	@Override

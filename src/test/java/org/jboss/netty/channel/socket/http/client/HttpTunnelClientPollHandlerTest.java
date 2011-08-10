@@ -29,7 +29,6 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.DownstreamMessageEvent;
 import org.jboss.netty.channel.socket.http.FakeChannelSink;
 import org.jboss.netty.channel.socket.http.FakeSocketChannel;
-import org.jboss.netty.channel.socket.http.client.HttpTunnelClientChannelPollHandler;
 import org.jboss.netty.channel.socket.http.util.HttpTunnelMessageUtils;
 import org.jboss.netty.channel.socket.http.util.NettyTestUtils;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -43,6 +42,7 @@ import org.junit.Test;
  */
 public class HttpTunnelClientPollHandlerTest {
 
+	private static final String USER_AGENT = "test";
 	private static final String TUNNEL_ID = "1";
 
 	private static final InetSocketAddress SERVER_ADDRESS = createAddress(
@@ -75,7 +75,7 @@ public class HttpTunnelClientPollHandlerTest {
 		sink = new FakeChannelSink();
 
 		ChannelPipeline pipeline = Channels.pipeline();
-		listener = new MockChannelStateListener();
+		listener = new MockChannelStateListener(USER_AGENT);
 		listener.serverHostName = HttpTunnelMessageUtils
 				.convertToHostString(SERVER_ADDRESS);
 		handler = new HttpTunnelClientChannelPollHandler(listener);
@@ -93,7 +93,7 @@ public class HttpTunnelClientPollHandlerTest {
 		assertEquals(1, sink.events.size());
 		HttpRequest request = checkIsMessageEventContainingHttpRequest(sink.events
 				.poll());
-		assertTrue(HttpTunnelMessageUtils.isServerToClientRequest(request));
+		assertTrue(HttpTunnelMessageUtils.isServerToClientRequest(request, USER_AGENT));
 		assertTrue(HttpTunnelMessageUtils.checkHost(request, SERVER_ADDRESS));
 		assertTrue(listener.fullyEstablished);
 	}

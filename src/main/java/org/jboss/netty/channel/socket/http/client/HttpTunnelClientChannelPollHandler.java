@@ -95,7 +95,7 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 		if (LOG.isDebugEnabled())
 			LOG.debug("sending poll request for tunnel " + tunnelId);
 
-		final HttpRequest request = HttpTunnelMessageUtils.createReceiveDataRequest(tunnelChannel.getServerHostName(), tunnelId);
+		final HttpRequest request = HttpTunnelMessageUtils.createReceiveDataRequest(tunnelChannel.getServerHostName(), tunnelId, tunnelChannel.getUserAgent());
 		channel.write(request);
 	}
 }

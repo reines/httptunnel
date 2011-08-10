@@ -53,32 +53,25 @@ public class HttpTunnelMessageUtils {
 	 */
 	public static final int MAX_BODY_SIZE = 16 * 1024;
 
-	/**
-	 * The tunnel will only accept connections from this specific user agent.
-	 * This allows us to distinguish a legitimate tunnel connection from someone
-	 * pointing a web browser or robot at the tunnel URL.
-	 */
-	private static final String USER_AGENT = "HttpTunnelClient";
-
 	private static final String OPEN_TUNNEL_REQUEST_URI = "/http-tunnel/open";
 	private static final String CLOSE_TUNNEL_REQUEST_URI = "/http-tunnel/close";
 	private static final String CLIENT_SEND_REQUEST_URI = "/http-tunnel/send";
 	private static final String CLIENT_RECV_REQUEST_URI = "/http-tunnel/poll";
 
-	public static HttpRequest createOpenTunnelRequest(SocketAddress host) {
-		return createOpenTunnelRequest(convertToHostString(host));
+	public static HttpRequest createOpenTunnelRequest(SocketAddress host, String userAgent) {
+		return createOpenTunnelRequest(convertToHostString(host), userAgent);
 	}
 
-	public static HttpRequest createOpenTunnelRequest(String host) {
-		final HttpRequest request = createRequestTemplate(host, null, OPEN_TUNNEL_REQUEST_URI);
+	public static HttpRequest createOpenTunnelRequest(String host, String userAgent) {
+		final HttpRequest request = createRequestTemplate(host, null, OPEN_TUNNEL_REQUEST_URI, userAgent);
 
 		setNoData(request);
 
 		return request;
 	}
 
-	public static boolean isOpenTunnelRequest(HttpRequest request) {
-		return isRequestTo(request, OPEN_TUNNEL_REQUEST_URI);
+	public static boolean isOpenTunnelRequest(HttpRequest request, String userAgent) {
+		return isRequestTo(request, OPEN_TUNNEL_REQUEST_URI, userAgent);
 	}
 
 	public static boolean checkHost(HttpRequest request, SocketAddress expectedHost) {
@@ -86,12 +79,12 @@ public class HttpTunnelMessageUtils {
 		return expectedHost == null ? host == null : convertToHostString(expectedHost).equals(host);
 	}
 
-	public static HttpRequest createSendDataRequest(SocketAddress host, String cookie, ChannelBuffer data) {
-		return createSendDataRequest(convertToHostString(host), cookie, data);
+	public static HttpRequest createSendDataRequest(SocketAddress host, String cookie, ChannelBuffer data, String userAgent) {
+		return createSendDataRequest(convertToHostString(host), cookie, data, userAgent);
 	}
 
-	public static HttpRequest createSendDataRequest(String host, String cookie, ChannelBuffer data) {
-		final HttpRequest request = createRequestTemplate(host, cookie, CLIENT_SEND_REQUEST_URI);
+	public static HttpRequest createSendDataRequest(String host, String cookie, ChannelBuffer data, String userAgent) {
+		final HttpRequest request = createRequestTemplate(host, cookie, CLIENT_SEND_REQUEST_URI, userAgent);
 
 		request.setHeader(HttpHeaders.Names.CONTENT_LENGTH, Long.toString(data.readableBytes()));
 		request.setContent(data);
@@ -99,40 +92,40 @@ public class HttpTunnelMessageUtils {
 		return request;
 	}
 
-	public static boolean isSendDataRequest(HttpRequest request) {
-		return isRequestTo(request, CLIENT_SEND_REQUEST_URI);
+	public static boolean isSendDataRequest(HttpRequest request, String userAgent) {
+		return isRequestTo(request, CLIENT_SEND_REQUEST_URI, userAgent);
 	}
 
-	public static HttpRequest createReceiveDataRequest(SocketAddress host, String tunnelId) {
-		return createReceiveDataRequest(convertToHostString(host), tunnelId);
+	public static HttpRequest createReceiveDataRequest(SocketAddress host, String tunnelId, String userAgent) {
+		return createReceiveDataRequest(convertToHostString(host), tunnelId, userAgent);
 	}
 
-	public static HttpRequest createReceiveDataRequest(String host, String tunnelId) {
-		final HttpRequest request = createRequestTemplate(host, tunnelId, CLIENT_RECV_REQUEST_URI);
+	public static HttpRequest createReceiveDataRequest(String host, String tunnelId, String userAgent) {
+		final HttpRequest request = createRequestTemplate(host, tunnelId, CLIENT_RECV_REQUEST_URI, userAgent);
 
 		setNoData(request);
 
 		return request;
 	}
 
-	public static boolean isReceiveDataRequest(HttpRequest request) {
-		return isRequestTo(request, CLIENT_RECV_REQUEST_URI);
+	public static boolean isReceiveDataRequest(HttpRequest request, String userAgent) {
+		return isRequestTo(request, CLIENT_RECV_REQUEST_URI, userAgent);
 	}
 
-	public static HttpRequest createCloseTunnelRequest(String host, String tunnelId) {
-		final HttpRequest request = createRequestTemplate(host, tunnelId, CLOSE_TUNNEL_REQUEST_URI);
+	public static HttpRequest createCloseTunnelRequest(String host, String tunnelId, String userAgent) {
+		final HttpRequest request = createRequestTemplate(host, tunnelId, CLOSE_TUNNEL_REQUEST_URI, userAgent);
 
 		setNoData(request);
 
 		return request;
 	}
 
-	public static boolean isCloseTunnelRequest(HttpRequest request) {
-		return isRequestTo(request, CLOSE_TUNNEL_REQUEST_URI);
+	public static boolean isCloseTunnelRequest(HttpRequest request, String userAgent) {
+		return isRequestTo(request, CLOSE_TUNNEL_REQUEST_URI, userAgent);
 	}
 
-	public static boolean isServerToClientRequest(HttpRequest request) {
-		return isRequestTo(request, CLIENT_RECV_REQUEST_URI);
+	public static boolean isServerToClientRequest(HttpRequest request, String userAgent) {
+		return isRequestTo(request, CLIENT_RECV_REQUEST_URI, userAgent);
 	}
 
 	public static String convertToHostString(SocketAddress hostAddress) {
@@ -159,11 +152,11 @@ public class HttpTunnelMessageUtils {
 		return host.toString();
 	}
 
-	private static HttpRequest createRequestTemplate(String host, String tunnelId, String uri) {
+	private static HttpRequest createRequestTemplate(String host, String tunnelId, String uri, String userAgent) {
 		final HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, createCompleteUri(host, uri));
 
 		request.setHeader(HttpHeaders.Names.HOST, host);
-		request.setHeader(HttpHeaders.Names.USER_AGENT, USER_AGENT);
+		request.setHeader(HttpHeaders.Names.USER_AGENT, userAgent);
 
 		if (tunnelId != null)
 			request.setHeader(HttpHeaders.Names.COOKIE, tunnelId);
@@ -181,7 +174,7 @@ public class HttpTunnelMessageUtils {
 		return builder.toString();
 	}
 
-	private static boolean isRequestTo(HttpRequest request, String uri) {
+	private static boolean isRequestTo(HttpRequest request, String uri, String userAgent) {
 		final URI decodedUri;
 		try {
 			decodedUri = new URI(request.getUri());
@@ -191,7 +184,7 @@ public class HttpTunnelMessageUtils {
 		}
 
 		return HttpVersion.HTTP_1_1.equals(request.getProtocolVersion())
-			&& USER_AGENT.equals(request.getHeader(HttpHeaders.Names.USER_AGENT))
+			&& userAgent.equals(request.getHeader(HttpHeaders.Names.USER_AGENT))
 			&& HttpMethod.POST.equals(request.getMethod())
 			&& uri.equals(decodedUri.getPath());
 	}
