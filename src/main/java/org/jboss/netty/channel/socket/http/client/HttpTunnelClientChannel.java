@@ -17,7 +17,7 @@ package org.jboss.netty.channel.socket.http.client;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -81,13 +81,12 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 	/**
 	 * @see HttpTunnelClientChannelFactory#newChannel(ChannelPipeline)
 	 */
-	protected HttpTunnelClientChannel(ChannelFactory factory, ChannelPipeline pipeline, HttpTunnelClientChannelSink sink, ClientSocketChannelFactory outboundFactory, ChannelGroup realConnections) {
+	protected HttpTunnelClientChannel(ChannelFactory factory, ChannelPipeline pipeline, HttpTunnelClientChannelSink sink, ClientSocketChannelFactory outboundFactory, ChannelGroup realConnections, ExecutorService bossExecutor, ExecutorService workerExecutor) {
 		super (null, factory, pipeline, sink);
 
 		callbackProxy = new WorkerCallbacks();
 
-		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this, Executors.newSingleThreadExecutor());
-		incomingBuffer.start();
+		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this, bossExecutor, workerExecutor);
 
 		sendChannel = outboundFactory.newChannel(this.createSendPipeline());
 		pollChannel = outboundFactory.newChannel(this.createPollPipeline());;

@@ -18,6 +18,7 @@ package org.jboss.netty.channel.socket.http.server;
 import java.net.InetSocketAddress;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -51,12 +52,17 @@ public class HttpTunnelServerChannel extends AbstractServerChannel implements Se
 	private final ConcurrentHashMap<String, HttpTunnelAcceptedChannel> tunnels;
 	private final ServerSocketChannel realChannel;
 	private final HttpTunnelServerChannelConfig config;
+	private final ExecutorService bossExecutor;
+	private final ExecutorService workerExecutor;
 
 	private final AtomicBoolean opened;
 	private final AtomicReference<BindState> bindState;
 
-	protected HttpTunnelServerChannel(ChannelFactory factory, ChannelPipeline pipeline, ChannelSink sink, ServerSocketChannelFactory inboundFactory, ChannelGroup realConnections) {
+	protected HttpTunnelServerChannel(ChannelFactory factory, ChannelPipeline pipeline, ChannelSink sink, ServerSocketChannelFactory inboundFactory, ChannelGroup realConnections, ExecutorService bossExecutor, ExecutorService workerExecutor) {
 		super (factory, pipeline, sink);
+
+		this.bossExecutor = bossExecutor;
+		this.workerExecutor = workerExecutor;
 
 		tunnelIdPrefix = Long.toHexString(new Random().nextLong());
 		tunnels = new ConcurrentHashMap<String, HttpTunnelAcceptedChannel>();
@@ -235,7 +241,7 @@ public class HttpTunnelServerChannel extends AbstractServerChannel implements Se
 		}
 
 		final String tunnelId = String.format("%s_%s", tunnelIdPrefix, tunnelIdGenerator.generateId());
-		final HttpTunnelAcceptedChannel tunnel = new HttpTunnelAcceptedChannel(this, this.getFactory(), childPipeline, new HttpTunnelAcceptedChannelSink(), remoteAddress, tunnelId);
+		final HttpTunnelAcceptedChannel tunnel = new HttpTunnelAcceptedChannel(this, this.getFactory(), childPipeline, new HttpTunnelAcceptedChannelSink(), remoteAddress, tunnelId, bossExecutor, workerExecutor);
 
 		tunnels.put(tunnelId, tunnel);
 
