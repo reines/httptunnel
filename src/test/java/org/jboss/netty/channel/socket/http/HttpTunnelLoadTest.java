@@ -8,6 +8,7 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.io.FileUtils;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
@@ -22,7 +23,7 @@ import org.junit.Test;
 public class HttpTunnelLoadTest {
 
 	public static final int TIMEOUT = 2;
-	public static final int MESSAGE_COUNT = 1000;
+	public static final int MESSAGE_COUNT = 100;
 	public static final int DATA_SIZE = 1024 * 256; // 256kb
 
 	private static Random random;
@@ -38,30 +39,89 @@ public class HttpTunnelLoadTest {
 		return ChannelBuffers.wrappedBuffer(bytes);
 	}
 
+	private class ThroughputIncomingChannelHandler extends OpenCloseIncomingChannelHandler<ChannelBuffer> {
+
+		private final CountDownLatch messageLatch;
+		private final long expectedData;
+
+		private long receivedData;
+
+		public ThroughputIncomingChannelHandler(long expectedData) {
+			super (1);
+
+			this.expectedData = expectedData;
+
+			messageLatch = new CountDownLatch(1);
+
+			receivedData = 0;
+		}
+
+		@Override
+		public void assertSatisfied(int timeout) throws InterruptedException {
+			final boolean success = messageLatch.await(timeout, TimeUnit.SECONDS);
+
+			System.out.println("server received: " + FileUtils.byteCountToDisplaySize(receivedData) + " / " + FileUtils.byteCountToDisplaySize(expectedData) + " (" + receivedData + " / " + expectedData + ", missing " + (expectedData - receivedData) + " bytes)");
+
+			// Wait for the data events
+			assertTrue("Missed some server data events", success);
+		}
+
+		@Override
+		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
+			super.messageReceived(ctx, e);
+
+			receivedData += ((ChannelBuffer) e.getMessage()).readableBytes();
+			if (receivedData >= expectedData)
+				messageLatch.countDown();
+		}
+	};
+
+	private class ThroughputOutgoingChannelHandler extends OpenCloseOutgoingChannelHandler {
+
+		private final CountDownLatch messageLatch;
+		private final long expectedData;
+
+		private long receivedData;
+
+		public ThroughputOutgoingChannelHandler(long expectedData) {
+			super (1);
+
+			this.expectedData = expectedData;
+
+			messageLatch = new CountDownLatch(1);
+
+			receivedData = 0;
+		}
+
+		@Override
+		public void assertSatisfied(int timeout) throws InterruptedException {
+			final boolean success = messageLatch.await(timeout, TimeUnit.SECONDS);
+
+			System.out.println("client received: " + FileUtils.byteCountToDisplaySize(receivedData) + " / " + FileUtils.byteCountToDisplaySize(expectedData) + " (" + receivedData + " / " + expectedData + ", missing " + (expectedData - receivedData) + " bytes)");
+
+			// Wait for the data events
+			assertTrue("Missed some client data events", success);
+		}
+
+		@Override
+		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
+			super.messageReceived(ctx, e);
+
+			receivedData += ((ChannelBuffer) e.getMessage()).readableBytes();
+			if (receivedData >= expectedData)
+				messageLatch.countDown();
+		}
+	};
+
 	@Test
 	public void testLoad() throws InterruptedException, IOException {
-		final CountDownLatch messageLatch = new CountDownLatch(1);
-		final long expectedData = MESSAGE_COUNT * DATA_SIZE;
-
 		// Create a buffer of the given size with random data in it
 		final ChannelBuffer message = HttpTunnelLoadTest.createMessage(DATA_SIZE);
 		assertTrue("failed to create dummy message", message.readableBytes() == DATA_SIZE);
 
 		final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
 
-		final OpenCloseIncomingChannelHandler<ChannelBuffer> serverHandler = new OpenCloseIncomingChannelHandler<ChannelBuffer>(1) {
-			long receivedData = 0;
-
-			@Override
-			public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-				super.messageReceived(ctx, e);
-
-				receivedData += ((ChannelBuffer) e.getMessage()).readableBytes();
-				if (receivedData >= expectedData)
-					messageLatch.countDown();
-			}
-		};
-
+		final ThroughputIncomingChannelHandler serverHandler = new ThroughputIncomingChannelHandler(MESSAGE_COUNT * DATA_SIZE);
 		final Channel serverChannel = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {
 			@Override
 			public ChannelPipeline getPipeline() throws Exception {
@@ -73,7 +133,7 @@ public class HttpTunnelLoadTest {
 		assertTrue("server isn't open after connect", serverChannel.isOpen());
 		assertTrue("server isn't bound after connect", serverChannel.isBound());
 
-		final OpenCloseOutgoingChannelHandler clientHandler = new OpenCloseOutgoingChannelHandler(MESSAGE_COUNT);
+		final ThroughputOutgoingChannelHandler clientHandler = new ThroughputOutgoingChannelHandler(MESSAGE_COUNT * DATA_SIZE);
 		final Channel clientChannel = NettyTestUtils.createClientChannel(addr, new ChannelPipelineFactory() {
 			@Override
 			public ChannelPipeline getPipeline() throws Exception {
@@ -96,20 +156,24 @@ public class HttpTunnelLoadTest {
 		assertTrue("server isn't open after connect", acceptedChannel.isOpen());
 		assertTrue("server isn't bound after connect", acceptedChannel.isBound());
 
-		// Send a test message
+		// Send test messages from the client
+		System.out.println("sending from client");
 		for (int i = 0;i < MESSAGE_COUNT;i++)
 			clientChannel.write(message).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
 
-		// Close the channel
-		assertTrue("client failed to close", clientChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
-
-		// Check we received the correct client events
-		clientHandler.assertSatisfied(TIMEOUT);
+		// Send test messages from the server
+		System.out.println("sending from server");
+		for (int i = 0;i < MESSAGE_COUNT;i++)
+			acceptedChannel.write(message).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
 
 		// Check we received the correct server events
-		serverHandler.assertSatisfied(TIMEOUT);
+		serverHandler.assertSatisfied(TIMEOUT * 3);
 
-		assertTrue("failed to receive all data", messageLatch.await(TIMEOUT, TimeUnit.SECONDS));
+		// Check we received the correct client events
+		clientHandler.assertSatisfied(TIMEOUT * 3);
+
+		// Close the channel
+		assertTrue("client failed to close", clientChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
 
 		if (serverChannel != null && serverChannel.isOpen())
 			serverChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);

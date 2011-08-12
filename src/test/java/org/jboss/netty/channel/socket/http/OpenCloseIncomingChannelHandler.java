@@ -111,7 +111,7 @@ class OpenCloseIncomingChannelHandler<T> extends SimpleChannelHandler {
 	@SuppressWarnings("unchecked")
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-		logger.info("server messageReceived: " + messageLatch);
+//		logger.info("server messageReceived: " + messageLatch);
 
 		messageReceived = (T) e.getMessage();
 		messageLatch.countDown();

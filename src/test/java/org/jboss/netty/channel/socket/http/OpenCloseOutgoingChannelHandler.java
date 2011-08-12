@@ -106,6 +106,6 @@ class OpenCloseOutgoingChannelHandler extends SimpleChannelHandler {
 	public void writeComplete(ChannelHandlerContext ctx, WriteCompletionEvent e) throws Exception {
 		messageLatch.countDown();
 
-		logger.info("client writeComplete: " + messageLatch);
+//		logger.info("client writeComplete: " + messageLatch);
 	}
 }
