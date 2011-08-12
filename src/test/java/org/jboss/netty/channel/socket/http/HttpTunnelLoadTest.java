@@ -18,6 +18,7 @@ import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.socket.http.util.NettyTestUtils;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class HttpTunnelLoadTest {
@@ -113,6 +114,7 @@ public class HttpTunnelLoadTest {
 		}
 	};
 
+	@Ignore
 	@Test
 	public void testLoad() throws InterruptedException, IOException {
 		// Create a buffer of the given size with random data in it
