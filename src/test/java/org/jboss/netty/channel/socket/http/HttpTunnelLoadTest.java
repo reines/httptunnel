@@ -8,7 +8,6 @@ import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.io.FileUtils;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
@@ -60,8 +59,6 @@ public class HttpTunnelLoadTest {
 				receivedData += ((ChannelBuffer) e.getMessage()).readableBytes();
 				if (receivedData >= expectedData)
 					messageLatch.countDown();
-
-				System.out.println("Received: " + FileUtils.byteCountToDisplaySize(receivedData) + " / " + FileUtils.byteCountToDisplaySize(expectedData));
 			}
 		};
 
