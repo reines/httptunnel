@@ -23,10 +23,10 @@ class OpenCloseOutgoingChannelHandler extends SimpleChannelHandler {
 
 	private Channel channel;
 
-	OpenCloseOutgoingChannelHandler() {
+	OpenCloseOutgoingChannelHandler(int expectedMessages) {
 		openLatch = new CountDownLatch(3);
 		closeLatch = new CountDownLatch(3);
-		messageLatch = new CountDownLatch(1);
+		messageLatch = new CountDownLatch(expectedMessages);
 
 		channel = null;
 	}

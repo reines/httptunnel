@@ -13,7 +13,7 @@ import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.logging.InternalLogger;
 import org.jboss.netty.logging.InternalLoggerFactory;
 
-class OpenCloseIncomingChannelHandler extends SimpleChannelHandler {
+class OpenCloseIncomingChannelHandler<T> extends SimpleChannelHandler {
 
 	private static final InternalLogger logger = InternalLoggerFactory.getInstance(OpenCloseIncomingChannelHandler.class);
 
@@ -22,12 +22,12 @@ class OpenCloseIncomingChannelHandler extends SimpleChannelHandler {
 	private final CountDownLatch messageLatch;
 
 	private Channel channel;
-	private String messageReceived;
+	private T messageReceived;
 
-	OpenCloseIncomingChannelHandler() {
+	OpenCloseIncomingChannelHandler(int expectedMessages) {
 		openLatch = new CountDownLatch(3);
 		closeLatch = new CountDownLatch(3);
-		messageLatch = new CountDownLatch(1);
+		messageLatch = new CountDownLatch(expectedMessages);
 
 		channel = null;
 		messageReceived = null;
@@ -37,7 +37,7 @@ class OpenCloseIncomingChannelHandler extends SimpleChannelHandler {
 		return channel;
 	}
 
-	String getMessageReceived() {
+	T getMessageReceived() {
 		return messageReceived;
 	}
 
@@ -108,11 +108,12 @@ class OpenCloseIncomingChannelHandler extends SimpleChannelHandler {
 			closeLatch.countDown();
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 		logger.info("server messageReceived: " + messageLatch);
 
-		messageReceived = (String) e.getMessage();
+		messageReceived = (T) e.getMessage();
 		messageLatch.countDown();
 	}
 }

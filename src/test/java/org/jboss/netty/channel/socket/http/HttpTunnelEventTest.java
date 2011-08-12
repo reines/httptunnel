@@ -22,7 +22,7 @@ public class HttpTunnelEventTest {
 
 	public static final int TIMEOUT = 2;
 
-	private OpenCloseIncomingChannelHandler serverHandler;
+	private OpenCloseIncomingChannelHandler<String> serverHandler;
 	private OpenCloseOutgoingChannelHandler clientHandler;
 
 	private Channel serverChannel;
@@ -33,7 +33,7 @@ public class HttpTunnelEventTest {
 	public void setUp() throws InterruptedException {
 		final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
 
-		serverHandler = new OpenCloseIncomingChannelHandler();
+		serverHandler = new OpenCloseIncomingChannelHandler<String>(1);
 		serverChannel = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {
 			@Override
 			public ChannelPipeline getPipeline() throws Exception {
@@ -45,7 +45,7 @@ public class HttpTunnelEventTest {
 		assertTrue("server isn't open after connect", serverChannel.isOpen());
 		assertTrue("server isn't bound after connect", serverChannel.isBound());
 
-		clientHandler = new OpenCloseOutgoingChannelHandler();
+		clientHandler = new OpenCloseOutgoingChannelHandler(1);
 		clientChannel = NettyTestUtils.createClientChannel(addr, new ChannelPipelineFactory() {
 			@Override
 			public ChannelPipeline getPipeline() throws Exception {
