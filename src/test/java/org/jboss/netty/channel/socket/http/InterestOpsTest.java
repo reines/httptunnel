@@ -26,7 +26,7 @@ public class InterestOpsTest {
 
 	@Test
 	public void testSetUnreadable() throws InterruptedException {
-		final InetSocketAddress addr = new InetSocketAddress("localhost", 8888);
+		final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
 
 		final ReadableChannelHandler serverHandler = new ReadableChannelHandler();
 		final Channel server = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {
