@@ -62,16 +62,16 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 		try {
 			// send channel
 			if (HttpTunnelMessageUtils.isOpenTunnelRequest(request, userAgent))
-				handleOpenTunnel(ctx);
+				this.handleOpenTunnel(ctx);
 			// send channel
 			else if (HttpTunnelMessageUtils.isSendDataRequest(request, userAgent))
-				handleSendData(ctx, request);
+				this.handleSendData(ctx, request);
 			// poll channel
 			else if (HttpTunnelMessageUtils.isReceiveDataRequest(request, userAgent))
-				handleReceiveData(ctx, request);
+				this.handleReceiveData(ctx, request);
 			// send channel
 			else if (HttpTunnelMessageUtils.isCloseTunnelRequest(request, userAgent))
-				handleCloseTunnel(ctx, request);
+				this.handleCloseTunnel(ctx, request);
 			else
 				throw new IllegalArgumentException("invalid request to netty HTTP tunnel gateway");
 		}

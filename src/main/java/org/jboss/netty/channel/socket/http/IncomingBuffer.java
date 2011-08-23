@@ -3,6 +3,7 @@ package org.jboss.netty.channel.socket.http;
 import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.Channels;
@@ -19,23 +20,23 @@ public class IncomingBuffer<T> implements Runnable {
 	private int capacity;
 	private int bounds;
 
-	public IncomingBuffer(Channel channel, ExecutorService bossExecutor, ExecutorService workerExecutor) {
-		this (channel, bossExecutor, workerExecutor, DEFAULT_CAPACITY);
+	public IncomingBuffer(Channel channel) {
+		this (channel, DEFAULT_CAPACITY);
 	}
 
-	public IncomingBuffer(Channel channel, ExecutorService bossExecutor, ExecutorService workerExecutor, int capacity) {
-		this (channel, bossExecutor, workerExecutor, capacity, DEFAULT_BOUNDS);
+	public IncomingBuffer(Channel channel, int capacity) {
+		this (channel, capacity, DEFAULT_BOUNDS);
 	}
 
-	public IncomingBuffer(Channel channel, ExecutorService bossExecutor, ExecutorService workerExecutor, int capacity, int bounds) {
+	public IncomingBuffer(Channel channel, int capacity, int bounds) {
 		this.channel = channel;
-		this.workerExecutor = workerExecutor;
 		this.capacity = capacity;
 		this.bounds = bounds;
 
+		workerExecutor = Executors.newSingleThreadExecutor();
 		buffer = new LinkedList<T>();
 
-		bossExecutor.execute(this);
+		new Thread(this).start();
 	}
 
 	public int getCapacity() {

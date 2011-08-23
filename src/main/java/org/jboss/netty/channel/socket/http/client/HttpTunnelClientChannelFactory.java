@@ -15,9 +15,6 @@
  */
 package org.jboss.netty.channel.socket.http.client;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
@@ -35,21 +32,15 @@ public class HttpTunnelClientChannelFactory implements ClientSocketChannelFactor
 	private final ClientSocketChannelFactory factory;
 	private final ChannelGroup realConnections;
 
-	private final ExecutorService bossExecutor;
-	private final ExecutorService workerExecutor;
-
 	public HttpTunnelClientChannelFactory(ClientSocketChannelFactory factory) {
 		this.factory = factory;
-
-		bossExecutor = Executors.newCachedThreadPool();
-		workerExecutor = Executors.newCachedThreadPool();
 
 		realConnections = new DefaultChannelGroup();
 	}
 
 	@Override
 	public HttpTunnelClientChannel newChannel(ChannelPipeline pipeline) {
-		return new HttpTunnelClientChannel(this, pipeline, new HttpTunnelClientChannelSink(), factory, realConnections, bossExecutor, workerExecutor);
+		return new HttpTunnelClientChannel(this, pipeline, new HttpTunnelClientChannelSink(), factory, realConnections);
 	}
 
 	@Override

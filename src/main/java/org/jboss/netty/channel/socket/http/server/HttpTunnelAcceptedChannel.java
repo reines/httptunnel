@@ -19,7 +19,6 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -57,7 +56,7 @@ import org.jboss.netty.logging.InternalLoggerFactory;
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author OneDrum Ltd.
  */
-class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel {
+public class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel {
 
 	private static final InternalLogger LOG = InternalLoggerFactory.getInstance(HttpTunnelAcceptedChannel.class);
 
@@ -74,7 +73,7 @@ class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel
 	private final Queue<QueuedResponse> queuedResponses;
 	private final IncomingBuffer<ChannelBuffer> incomingBuffer;
 
-	protected HttpTunnelAcceptedChannel(HttpTunnelServerChannel parent, ChannelFactory factory, ChannelPipeline pipeline, ChannelSink sink, InetSocketAddress remoteAddress, String tunnelId, ExecutorService bossExecutor, ExecutorService workerExecutor) {
+	protected HttpTunnelAcceptedChannel(HttpTunnelServerChannel parent, ChannelFactory factory, ChannelPipeline pipeline, ChannelSink sink, InetSocketAddress remoteAddress, String tunnelId) {
 		super (parent, factory, pipeline, sink);
 
 		this.parent = parent;
@@ -91,7 +90,7 @@ class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel
 		pollChannel = new AtomicReference<Channel>(null);
 		queuedResponses = new ConcurrentLinkedQueue<QueuedResponse>();
 
-		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this, bossExecutor, workerExecutor);
+		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this);
 	}
 
 	String getTunnelId() {
