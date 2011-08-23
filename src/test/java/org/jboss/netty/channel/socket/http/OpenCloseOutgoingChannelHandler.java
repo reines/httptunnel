@@ -10,12 +10,8 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.channel.WriteCompletionEvent;
-import org.jboss.netty.logging.InternalLogger;
-import org.jboss.netty.logging.InternalLoggerFactory;
 
 class OpenCloseOutgoingChannelHandler extends SimpleChannelHandler {
-
-	private static final InternalLogger logger = InternalLoggerFactory.getInstance(OpenCloseOutgoingChannelHandler.class);
 
 	private final CountDownLatch openLatch;
 	private final CountDownLatch closeLatch;
@@ -53,8 +49,6 @@ class OpenCloseOutgoingChannelHandler extends SimpleChannelHandler {
 			openLatch.countDown();
 
 		channel = ctx.getChannel();
-
-		logger.info("client channelOpen: " + openLatch);
 	}
 
 	@Override
@@ -62,8 +56,6 @@ class OpenCloseOutgoingChannelHandler extends SimpleChannelHandler {
 		// Second open event
 		if (openLatch.getCount() == 2)
 			openLatch.countDown();
-
-		logger.info("client channelBound: " + openLatch);
 	}
 
 	@Override
@@ -71,8 +63,6 @@ class OpenCloseOutgoingChannelHandler extends SimpleChannelHandler {
 		// Final open event
 		if (openLatch.getCount() == 1)
 			openLatch.countDown();
-
-		logger.info("client channelConnected: " + openLatch);
 	}
 
 	@Override
@@ -80,8 +70,6 @@ class OpenCloseOutgoingChannelHandler extends SimpleChannelHandler {
 		// First close event
 		if (closeLatch.getCount() == 3)
 			closeLatch.countDown();
-
-		logger.info("client channelDisconnected: " + closeLatch);
 	}
 
 	@Override
@@ -89,8 +77,6 @@ class OpenCloseOutgoingChannelHandler extends SimpleChannelHandler {
 		// Second close event
 		if (closeLatch.getCount() == 2)
 			closeLatch.countDown();
-
-		logger.info("client channelUnbound: " + closeLatch);
 	}
 
 	@Override
@@ -98,14 +84,10 @@ class OpenCloseOutgoingChannelHandler extends SimpleChannelHandler {
 		// Final close event
 		if (closeLatch.getCount() == 1)
 			closeLatch.countDown();
-
-		logger.info("client channelClosed: " + closeLatch);
 	}
 
 	@Override
 	public void writeComplete(ChannelHandlerContext ctx, WriteCompletionEvent e) throws Exception {
 		messageLatch.countDown();
-
-//		logger.info("client writeComplete: " + messageLatch);
 	}
 }

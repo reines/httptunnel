@@ -10,12 +10,8 @@ import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
-import org.jboss.netty.logging.InternalLogger;
-import org.jboss.netty.logging.InternalLoggerFactory;
 
 class OpenCloseIncomingChannelHandler<T> extends SimpleChannelHandler {
-
-	private static final InternalLogger logger = InternalLoggerFactory.getInstance(OpenCloseIncomingChannelHandler.class);
 
 	private final CountDownLatch openLatch;
 	private final CountDownLatch closeLatch;
@@ -54,8 +50,6 @@ class OpenCloseIncomingChannelHandler<T> extends SimpleChannelHandler {
 
 	@Override
 	public void channelOpen(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-		logger.info("server channelOpen: " + openLatch);
-
 		channel = ctx.getChannel();
 
 		// First open event
@@ -65,8 +59,6 @@ class OpenCloseIncomingChannelHandler<T> extends SimpleChannelHandler {
 
 	@Override
 	public void channelBound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-		logger.info("server channelBound: " + openLatch);
-
 		// Second open event
 		if (openLatch.getCount() == 2)
 			openLatch.countDown();
@@ -74,8 +66,6 @@ class OpenCloseIncomingChannelHandler<T> extends SimpleChannelHandler {
 
 	@Override
 	public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-		logger.info("server channelConnected: " + openLatch);
-
 		// Final open event
 		if (openLatch.getCount() == 1)
 			openLatch.countDown();
@@ -83,8 +73,6 @@ class OpenCloseIncomingChannelHandler<T> extends SimpleChannelHandler {
 
 	@Override
 	public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-		logger.info("server channelDisconnected: " + closeLatch);
-
 		// First close event
 		if (closeLatch.getCount() == 3)
 			closeLatch.countDown();
@@ -92,8 +80,6 @@ class OpenCloseIncomingChannelHandler<T> extends SimpleChannelHandler {
 
 	@Override
 	public void channelUnbound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-		logger.info("server channelUnbound: " + closeLatch);
-
 		// Second close event
 		if (closeLatch.getCount() == 2)
 			closeLatch.countDown();
@@ -101,8 +87,6 @@ class OpenCloseIncomingChannelHandler<T> extends SimpleChannelHandler {
 
 	@Override
 	public void channelClosed(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-		logger.info("server channelClosed: " + closeLatch);
-
 		// Final close event
 		if (closeLatch.getCount() == 1)
 			closeLatch.countDown();
@@ -111,8 +95,6 @@ class OpenCloseIncomingChannelHandler<T> extends SimpleChannelHandler {
 	@SuppressWarnings("unchecked")
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-//		logger.info("server messageReceived: " + messageLatch);
-
 		messageReceived = (T) e.getMessage();
 		messageLatch.countDown();
 	}

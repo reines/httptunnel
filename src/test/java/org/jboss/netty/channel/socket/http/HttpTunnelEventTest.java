@@ -160,7 +160,7 @@ public class HttpTunnelEventTest {
 
 	/**
 	 * Here we close the server first, which should close the server channel
-	 * itself, the server accepted channel, and the client channel.
+	 * itself, but not the server accepted channel or the client channel.
 	 */
 	@Test
 	public void testOpenCloseServerChannel() throws InterruptedException {
@@ -176,12 +176,12 @@ public class HttpTunnelEventTest {
 
 		assertEquals("the received message doesn't match the sent message", message, serverHandler.getMessageReceived());
 
-		// Client channel shouldn't be open, bound, or connected
+		// Client channel should still be open, bound, and connected
 		assertTrue("client isn't connected after close", clientChannel.isConnected());
 		assertTrue("client isn't bound after close", clientChannel.isBound());
 		assertTrue("client isn't open after close", clientChannel.isOpen());
 
-		// Accepted channel shouldn't be open, bound, or connected
+		// Accepted channel should still be open, bound, and connected
 		assertTrue("accepted isn't connected after close", acceptedChannel.isConnected());
 		assertTrue("accepted isn't bound after close", acceptedChannel.isBound());
 		assertTrue("accepted isn't open after close", acceptedChannel.isOpen());
@@ -206,7 +206,7 @@ public class HttpTunnelEventTest {
 		Thread.sleep(1000);
 
 		// Close the channel
-		assertTrue("client failed to close", acceptedChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
+		assertTrue("accepted failed to close", acceptedChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
 
 		// Check we received the correct client events
 		clientHandler.assertSatisfied(TIMEOUT);
