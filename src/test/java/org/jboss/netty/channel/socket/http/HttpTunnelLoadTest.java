@@ -18,7 +18,7 @@ import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.socket.http.util.NettyTestUtils;
-import org.junit.Ignore;
+import org.junit.After;
 import org.junit.Test;
 
 public class HttpTunnelLoadTest {
@@ -114,7 +114,22 @@ public class HttpTunnelLoadTest {
 		}
 	};
 
-	@Ignore
+	private Channel serverChannel;
+	private Channel clientChannel;
+	private Channel acceptedChannel;
+
+	@After
+	public void tearDown() {
+		if (serverChannel != null && serverChannel.isOpen())
+			serverChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
+
+		if (clientChannel != null && clientChannel.isOpen())
+			clientChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
+
+		if (acceptedChannel != null && acceptedChannel.isOpen())
+			acceptedChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
+	}
+
 	@Test
 	public void testLoad() throws InterruptedException, IOException {
 		// Create a buffer of the given size with random data in it
@@ -124,7 +139,7 @@ public class HttpTunnelLoadTest {
 		final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
 
 		final ThroughputIncomingChannelHandler serverHandler = new ThroughputIncomingChannelHandler(MESSAGE_COUNT * DATA_SIZE);
-		final Channel serverChannel = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {
+		serverChannel = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {
 			@Override
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(serverHandler);
@@ -136,7 +151,7 @@ public class HttpTunnelLoadTest {
 		assertTrue("server isn't bound after connect", serverChannel.isBound());
 
 		final ThroughputOutgoingChannelHandler clientHandler = new ThroughputOutgoingChannelHandler(MESSAGE_COUNT * DATA_SIZE);
-		final Channel clientChannel = NettyTestUtils.createClientChannel(addr, new ChannelPipelineFactory() {
+		clientChannel = NettyTestUtils.createClientChannel(addr, new ChannelPipelineFactory() {
 			@Override
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(clientHandler);
@@ -146,7 +161,7 @@ public class HttpTunnelLoadTest {
 		// Check we actually managed to connect
 		assertTrue("failed to connect", clientChannel != null);
 
-		final Channel acceptedChannel = serverHandler.getChannel();
+		acceptedChannel = serverHandler.getChannel();
 		assertTrue("no accepted channel found, the channelOpen event is most likely missing", acceptedChannel != null);
 
 		// Client channel should be open, bound, and connected
@@ -159,12 +174,10 @@ public class HttpTunnelLoadTest {
 		assertTrue("server isn't bound after connect", acceptedChannel.isBound());
 
 		// Send test messages from the client
-		System.out.println("sending from client");
 		for (int i = 0;i < MESSAGE_COUNT;i++)
 			clientChannel.write(message).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
 
 		// Send test messages from the server
-		System.out.println("sending from server");
 		for (int i = 0;i < MESSAGE_COUNT;i++)
 			acceptedChannel.write(message).awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
 
@@ -176,14 +189,5 @@ public class HttpTunnelLoadTest {
 
 		// Close the channel
 		assertTrue("client failed to close", clientChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS));
-
-		if (serverChannel != null && serverChannel.isOpen())
-			serverChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
-
-		if (clientChannel != null && clientChannel.isOpen())
-			clientChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
-
-		if (acceptedChannel != null && acceptedChannel.isOpen())
-			acceptedChannel.close().awaitUninterruptibly(TIMEOUT, TimeUnit.SECONDS);
 	}
 }
