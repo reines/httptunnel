@@ -17,6 +17,7 @@ import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.WriteCompletionEvent;
 import org.jboss.netty.channel.socket.http.util.NettyTestUtils;
 import org.junit.After;
 import org.junit.Test;
@@ -42,75 +43,129 @@ public class HttpTunnelLoadTest {
 
 	private class ThroughputIncomingChannelHandler extends OpenCloseIncomingChannelHandler<ChannelBuffer> {
 
-		private final CountDownLatch messageLatch;
+		private final CountDownLatch receivedLatch;
+		private final CountDownLatch sentLatch;
 		private final long expectedData;
 
 		private long receivedData;
+		private long sentData;
 
 		public ThroughputIncomingChannelHandler(long expectedData) {
 			super (1);
 
 			this.expectedData = expectedData;
 
-			messageLatch = new CountDownLatch(1);
+			receivedLatch = new CountDownLatch(1);
+			sentLatch = new CountDownLatch(1);
 
 			receivedData = 0;
+			sentData = 0;
 		}
 
 		@Override
 		public void assertSatisfied(int timeout) throws InterruptedException {
-			final boolean success = messageLatch.await(timeout, TimeUnit.SECONDS);
+			final boolean sentSuccess = sentLatch.await(timeout, TimeUnit.SECONDS);
+			final boolean receiveSuccess = receivedLatch.await(timeout, TimeUnit.SECONDS);
 
+			System.out.println("server sent: " + FileUtils.byteCountToDisplaySize(sentData) + " / " + FileUtils.byteCountToDisplaySize(expectedData) + " (" + sentData + " / " + expectedData + ", missing " + (expectedData - sentData) + " bytes)");
 			System.out.println("server received: " + FileUtils.byteCountToDisplaySize(receivedData) + " / " + FileUtils.byteCountToDisplaySize(expectedData) + " (" + receivedData + " / " + expectedData + ", missing " + (expectedData - receivedData) + " bytes)");
 
 			// Wait for the data events
-			assertTrue("Missed some server data events", success);
+			assertTrue("Missed some server sent events", sentSuccess);
+			assertTrue("Missed some server receive events", receiveSuccess);
 		}
 
 		@Override
 		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 			super.messageReceived(ctx, e);
 
-			receivedData += ((ChannelBuffer) e.getMessage()).readableBytes();
+			final ChannelBuffer buffer = (ChannelBuffer) e.getMessage();
+//			System.out.println("<- " + buffer);
+
+			receivedData += buffer.readableBytes();
 			if (receivedData >= expectedData)
-				messageLatch.countDown();
+				receivedLatch.countDown();
+		}
+
+		@Override
+		public void writeComplete(ChannelHandlerContext ctx, WriteCompletionEvent e) throws Exception {
+			super.writeComplete(ctx, e);
+
+			sentData += e.getWrittenAmount();
+			if (sentData >= expectedData)
+				sentLatch.countDown();
+		}
+
+		@Override
+		public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
+			final ChannelBuffer buffer = (ChannelBuffer) e.getMessage();
+//			System.out.println("-> " + buffer);
+
+			super.writeRequested(ctx, e);
 		}
 	};
 
 	private class ThroughputOutgoingChannelHandler extends OpenCloseOutgoingChannelHandler {
 
-		private final CountDownLatch messageLatch;
+		private final CountDownLatch receivedLatch;
+		private final CountDownLatch sentLatch;
 		private final long expectedData;
 
 		private long receivedData;
+		private long sentData;
 
 		public ThroughputOutgoingChannelHandler(long expectedData) {
 			super (1);
 
 			this.expectedData = expectedData;
 
-			messageLatch = new CountDownLatch(1);
+			receivedLatch = new CountDownLatch(1);
+			sentLatch = new CountDownLatch(1);
 
 			receivedData = 0;
+			sentData = 0;
 		}
 
 		@Override
 		public void assertSatisfied(int timeout) throws InterruptedException {
-			final boolean success = messageLatch.await(timeout, TimeUnit.SECONDS);
+			final boolean sentSuccess = sentLatch.await(timeout, TimeUnit.SECONDS);
+			final boolean receiveSuccess = receivedLatch.await(timeout, TimeUnit.SECONDS);
 
+			System.out.println("client sent: " + FileUtils.byteCountToDisplaySize(sentData) + " / " + FileUtils.byteCountToDisplaySize(expectedData) + " (" + sentData + " / " + expectedData + ", missing " + (expectedData - sentData) + " bytes)");
 			System.out.println("client received: " + FileUtils.byteCountToDisplaySize(receivedData) + " / " + FileUtils.byteCountToDisplaySize(expectedData) + " (" + receivedData + " / " + expectedData + ", missing " + (expectedData - receivedData) + " bytes)");
 
 			// Wait for the data events
-			assertTrue("Missed some client data events", success);
+			assertTrue("Missed some client sent events", sentSuccess);
+			assertTrue("Missed some client receive events", receiveSuccess);
 		}
 
 		@Override
 		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 			super.messageReceived(ctx, e);
 
-			receivedData += ((ChannelBuffer) e.getMessage()).readableBytes();
+			final ChannelBuffer buffer = (ChannelBuffer) e.getMessage();
+//			System.out.println("<- " + buffer);
+
+			receivedData += buffer.readableBytes();
 			if (receivedData >= expectedData)
-				messageLatch.countDown();
+				receivedLatch.countDown();
+		}
+
+		@Override
+		public void writeComplete(ChannelHandlerContext ctx, WriteCompletionEvent e) throws Exception {
+			super.writeComplete(ctx, e);
+
+			sentData += e.getWrittenAmount();
+			if (sentData >= expectedData)
+				sentLatch.countDown();
+		}
+
+		@Override
+		public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
+			final ChannelBuffer buffer = (ChannelBuffer) e.getMessage();
+//			System.out.println("-> " + buffer);
+
+			super.writeRequested(ctx, e);
 		}
 	};
 

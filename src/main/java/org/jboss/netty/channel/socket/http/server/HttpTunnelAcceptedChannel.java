@@ -260,7 +260,17 @@ class HttpTunnelAcceptedChannel extends AbstractChannel implements SocketChannel
 		final HttpResponse response = HttpTunnelMessageUtils.createRecvDataResponse(messageToSend.getData());
 		final ChannelFuture future = messageToSend.getFuture();
 
-		Channels.write(channel, response).addListener(new ForwardingFutureListener(future));
+		Channels.write(channel, response).addListener(new ForwardingFutureListener(future) {
+			@Override
+			public void operationComplete(ChannelFuture future) throws Exception {
+				if (future.isSuccess()) {
+					// Fire a write complete event
+					Channels.fireWriteComplete(HttpTunnelAcceptedChannel.this, messageToSend.getLength());
+				}
+
+				super.operationComplete(future);
+			}
+		});
 	}
 
 	void updateSaturationStatus(int queueSizeDelta) {

@@ -69,11 +69,6 @@ public class MockChannelStateListener implements HttpTunnelClientWorkerOwner {
 	}
 
 	@Override
-	public void writeComplete(long amount) {
-		// not relevant for test
-	}
-
-	@Override
 	public void onDisconnectRequest(ChannelFuture connectFuture) {
 		// not relevant for test
 	}

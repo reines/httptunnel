@@ -28,7 +28,6 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.DownstreamMessageEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
-import org.jboss.netty.channel.WriteCompletionEvent;
 import org.jboss.netty.channel.socket.http.util.HttpTunnelMessageUtils;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -201,11 +200,6 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 	@Override
 	public void unbindRequested(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
 		this.shutdownTunnel(ctx, e);
-	}
-
-	@Override
-	public void writeComplete(ChannelHandlerContext ctx, WriteCompletionEvent e) throws Exception {
-		tunnelChannel.writeComplete(e.getWrittenAmount());
 	}
 
 	private void shutdownTunnel(ChannelHandlerContext ctx, ChannelStateEvent postShutdownEvent) {

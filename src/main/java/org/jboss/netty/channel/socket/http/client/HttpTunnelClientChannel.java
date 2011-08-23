@@ -408,8 +408,12 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 			public void operationComplete(ChannelFuture future) throws Exception {
 				updateSaturationStatus(-messageSize);
 
-				if (future.isSuccess())
+				if (future.isSuccess()) {
+					// Fire a write complete event
+					Channels.fireWriteComplete(HttpTunnelClientChannel.this, messageSize);
+
 					messageFuture.setSuccess();
+				}
 				else
 					messageFuture.setFailure(future.getCause());
 			}
@@ -563,13 +567,6 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 				// TODO: Send a "stop sending shit" message!
 				// TODO: What about when to send the "start sending shit again" message?
 			}
-		}
-
-		@Override
-		public void writeComplete(long amount) {
-			// Only fire for stuff sent after the initial setup
-			if (HttpTunnelClientChannel.this.isConnected())
-				Channels.fireWriteComplete(HttpTunnelClientChannel.this, amount);
 		}
 
 		@Override

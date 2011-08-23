@@ -12,6 +12,10 @@ public class QueuedResponse {
 		this.future = future;
 	}
 
+	public int getLength() {
+		return data.readableBytes();
+	}
+
 	public ChannelBuffer getData() {
 		return data;
 	}

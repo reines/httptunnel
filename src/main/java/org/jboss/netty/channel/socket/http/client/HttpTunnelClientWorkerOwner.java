@@ -67,14 +67,6 @@ interface HttpTunnelClientWorkerOwner {
 	public void onMessageReceived(ChannelBuffer content);
 
 	/**
-	 * The send channel handler calls this method when any data is written.
-	 *
-	 * @param amount
-	 *            the amount of data written, in bytes
-	 */
-	public void writeComplete(long amount);
-
-	/**
 	 * @return the name of the server with whom we are communicating with - this
 	 *         is used within the HOST HTTP header for all requests. This is
 	 *         particularly important for operation behind a proxy, where the
