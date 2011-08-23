@@ -183,8 +183,7 @@ public class HttpTunnelMessageUtils {
 			return false;
 		}
 
-		return HttpVersion.HTTP_1_1.equals(request.getProtocolVersion())
-			&& userAgent.equals(request.getHeader(HttpHeaders.Names.USER_AGENT))
+		return userAgent.equals(request.getHeader(HttpHeaders.Names.USER_AGENT))
 			&& HttpMethod.POST.equals(request.getMethod())
 			&& uri.equals(decodedUri.getPath());
 	}

@@ -120,7 +120,8 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 			}
 
 			ctx.sendDownstream(postShutdownEvent);
-		} else {
+		}
+		else {
 			if (LOG.isWarnEnabled())
 				LOG.warn("unknown response received for tunnel " + tunnelId + ", closing connection");
 
