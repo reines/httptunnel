@@ -545,6 +545,11 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		}
 
 		@Override
+		public synchronized void underlyingChannelFailed() {
+			// TODO: Should we try reopen these, or just fail the entire channel?
+		}
+
+		@Override
 		public void onMessageReceived(ChannelBuffer message) {
 			if (!opened.get()) {
 				if (LOG.isWarnEnabled())
@@ -579,6 +584,11 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		@Override
 		public String getUserAgent() {
 			return config.getUserAgent();
+		}
+
+		@Override
+		public boolean isConnected() {
+			return HttpTunnelClientChannel.this.isConnected();
 		}
 	}
 }

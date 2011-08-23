@@ -77,4 +77,14 @@ public class MockChannelStateListener implements HttpTunnelClientWorkerOwner {
 	public String getUserAgent() {
 		return userAgent;
 	}
+
+	@Override
+	public boolean isConnected() {
+		return true;
+	}
+
+	@Override
+	public void underlyingChannelFailed() {
+		// not relevant for test
+	}
 }

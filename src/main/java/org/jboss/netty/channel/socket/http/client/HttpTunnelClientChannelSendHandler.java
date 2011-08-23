@@ -203,6 +203,18 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 		this.shutdownTunnel(ctx, e);
 	}
 
+	@Override
+	public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+		if (!tunnelChannel.isConnected())
+			return;
+
+		if (LOG.isDebugEnabled())
+			LOG.debug("Send channel for tunnel " + tunnelId + " failed");
+
+		// The send channel was closed forcefully rather than by a shutdown
+		tunnelChannel.underlyingChannelFailed();
+	}
+
 	private void shutdownTunnel(ChannelHandlerContext ctx, ChannelStateEvent postShutdownEvent) {
 		if (LOG.isDebugEnabled())
 			LOG.debug("tunnel shutdown requested for send channel of tunnel " + tunnelId);

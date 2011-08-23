@@ -66,6 +66,18 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 	}
 
 	@Override
+	public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+		if (!tunnelChannel.isConnected())
+			return;
+
+		if (LOG.isDebugEnabled())
+			LOG.debug("Poll channel for tunnel " + tunnelId + " failed");
+
+		// The poll channel was closed forcefully rather than by a shutdown
+		tunnelChannel.underlyingChannelFailed();
+	}
+
+	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 		final HttpResponse response = (HttpResponse) e.getMessage();
 
@@ -87,7 +99,6 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 	}
 
 	private void sendPoll(Channel channel) {
-		// If the channel is closed then don't bother
 		if (!channel.isOpen())
 			return;
 

@@ -58,6 +58,12 @@ interface HttpTunnelClientWorkerOwner {
 	public void fullyEstablished();
 
 	/**
+	 * Called by both the send channel handler and poll channel handler if the
+	 * underlying channel fails.
+	 */
+	public void underlyingChannelFailed();
+
+	/**
 	 * The poll handler calls this method when some data is received and decoded
 	 * from the server.
 	 *
@@ -75,4 +81,6 @@ interface HttpTunnelClientWorkerOwner {
 	public String getServerHostName();
 
 	public String getUserAgent();
+
+	public boolean isConnected();
 }
