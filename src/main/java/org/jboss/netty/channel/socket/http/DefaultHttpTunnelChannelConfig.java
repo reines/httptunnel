@@ -24,15 +24,31 @@ public abstract class DefaultHttpTunnelChannelConfig extends DefaultChannelConfi
 	public static final int DEFAULT_HIGH_WATER_MARK = 64 * 1024; // 64kb
 	public static final int DEFAULT_LOW_WATER_MARK = 32 * 1024; // 32kb
 
+	public static final int DEFAULT_PING_DELAY = 5;
+
 	public static final String HIGH_WATER_MARK_OPTION = "writeBufferhHighWaterMark";
 	public static final String LOW_WATER_MARK_OPTION = "writeBufferLowWaterMark";
 
 	protected volatile int writeBufferLowWaterMark;
 	protected volatile int writeBufferHighWaterMark;
 
+	private int pingDelay;
+
 	public DefaultHttpTunnelChannelConfig() {
 		writeBufferLowWaterMark = DEFAULT_LOW_WATER_MARK;
 		writeBufferHighWaterMark = DEFAULT_HIGH_WATER_MARK;
+
+		pingDelay = DEFAULT_PING_DELAY;
+	}
+
+	@Override
+	public void setPingDelay(int pingDelay) {
+		this.pingDelay = pingDelay;
+	}
+
+	@Override
+	public int getPingDelay() {
+		return pingDelay;
 	}
 
 	@Override

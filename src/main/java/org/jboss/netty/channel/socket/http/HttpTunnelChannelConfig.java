@@ -63,4 +63,7 @@ public interface HttpTunnelChannelConfig extends SocketChannelConfig {
 	 */
 	public void setWriteBufferLowWaterMark(int writeBufferLowWaterMark);
 	public int getWriteBufferLowWaterMark();
+
+	public void setPingDelay(int pingDelay);
+	public int getPingDelay();
 }

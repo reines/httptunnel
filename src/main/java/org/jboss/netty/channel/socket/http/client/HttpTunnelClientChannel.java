@@ -387,10 +387,7 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 
 		if (!this.isConnected()) {
 			final Exception error = new IllegalStateException("Unable to send message when not connected");
-
 			messageFuture.setFailure(error);
-			Channels.fireExceptionCaught(this, error);
-
 			return messageFuture;
 		}
 
@@ -546,7 +543,8 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 
 		@Override
 		public synchronized void underlyingChannelFailed() {
-			// TODO: Should we try reopen these, or just fail the entire channel?
+			// One (or both) of the underlying channels has failed - shut down
+			internalClose(Channels.future(HttpTunnelClientChannel.this));
 		}
 
 		@Override

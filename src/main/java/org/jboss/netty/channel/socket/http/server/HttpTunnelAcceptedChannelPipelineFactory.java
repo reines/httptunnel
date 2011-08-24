@@ -16,6 +16,7 @@
 
 package org.jboss.netty.channel.socket.http.server;
 
+import org.jboss.netty.channel.ChannelHandler;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.Channels;
@@ -35,10 +36,10 @@ import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
  */
 class HttpTunnelAcceptedChannelPipelineFactory implements ChannelPipelineFactory {
 
-	private final HttpTunnelServerChannel parent;
+	private final ChannelHandler channelHandler;
 
 	public HttpTunnelAcceptedChannelPipelineFactory(HttpTunnelServerChannel parent) {
-		this.parent = parent;
+		channelHandler = new HttpTunnelAcceptedChannelHandler(parent);
 	}
 
 	@Override
@@ -48,7 +49,7 @@ class HttpTunnelAcceptedChannelPipelineFactory implements ChannelPipelineFactory
 		pipeline.addLast("httpResponseEncoder", new HttpResponseEncoder());
 		pipeline.addLast("httpRequestDecoder", new HttpRequestDecoder());
 		pipeline.addLast("httpChunkAggregator", new HttpChunkAggregator(HttpTunnelMessageUtils.MAX_BODY_SIZE));
-		pipeline.addLast("messageSwitchClient", new HttpTunnelAcceptedChannelHandler(parent));
+		pipeline.addLast("messageSwitchClient", channelHandler);
 
 		return pipeline;
 	}

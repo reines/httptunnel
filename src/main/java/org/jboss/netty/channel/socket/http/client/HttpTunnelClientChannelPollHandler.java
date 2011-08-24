@@ -89,6 +89,13 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 			tunnelChannel.onMessageReceived(response.getContent());
 			this.sendPoll(ctx.getChannel());
 		}
+		else if (HttpTunnelMessageUtils.isPingResponse(response)) {
+			long rtTime = System.nanoTime() - pollTime;
+			if (LOG.isDebugEnabled())
+				LOG.debug("Ping response received for poll on tunnel " + tunnelId + " after " + rtTime + " ns");
+
+			this.sendPoll(ctx.getChannel());
+		}
 		else if (HttpTunnelMessageUtils.isTunnelCloseResponse(response)) {
 			tunnelChannel.onDisconnectRequest(Channels.future(ctx.getChannel()));
 		}

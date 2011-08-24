@@ -19,6 +19,10 @@ import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -73,6 +77,11 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 	private final Queue<QueuedResponse> queuedResponses;
 	private final IncomingBuffer<ChannelBuffer> incomingBuffer;
 
+	private final ScheduledExecutorService pingExecutor;
+	private final Runnable pingResponder;
+	private final Runnable pingTimeout;
+	private ScheduledFuture<?> pingTimeoutFuture;
+
 	protected HttpTunnelAcceptedChannel(HttpTunnelServerChannel parent, ChannelFactory factory, ChannelPipeline pipeline, ChannelSink sink, InetSocketAddress remoteAddress, String tunnelId) {
 		super (parent, factory, pipeline, sink);
 
@@ -91,6 +100,10 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 		queuedResponses = new ConcurrentLinkedQueue<QueuedResponse>();
 
 		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this);
+		pingExecutor = Executors.newSingleThreadScheduledExecutor();
+		pingResponder = new PingResponder();
+		pingTimeout = new PingTimeout();
+		pingTimeoutFuture = null;
 	}
 
 	String getTunnelId() {
@@ -193,10 +206,7 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 
 		if (!this.isConnected()) {
 			final Exception error = new IllegalStateException("Unable to send message when not connected");
-
 			messageFuture.setFailure(error);
-			Channels.fireExceptionCaught(this, error);
-
 			return messageFuture;
 		}
 
@@ -250,6 +260,10 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 		// no data to send, restore the response channel and bail out
 		if (messageToSend == null) {
 			pollChannel.set(channel);
+
+			// Schedule a timeout that will respond with a ping and trigger a new poll request
+			pingExecutor.schedule(pingResponder, config.getPingDelay(), TimeUnit.SECONDS);
+
 			return;
 		}
 
@@ -298,5 +312,38 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 			ops |= OP_WRITE;
 
 		this.internalSetInterestOps(ops, Channels.future(this));
+	}
+
+	synchronized void ping() {
+		// Cancel the existing timeout
+		if (pingTimeoutFuture != null)
+			pingTimeoutFuture.cancel(false);
+
+		// Schedule the next timeout for 2 * ping delay seconds
+		pingTimeoutFuture = pingExecutor.schedule(pingTimeout, config.getPingDelay() * 2, TimeUnit.SECONDS);
+	}
+
+	private class PingResponder implements Runnable {
+		@Override
+		public void run() {
+			final Channel channel = pollChannel.getAndSet(null);
+			// no response channel, or another thread has already used it
+			if (channel == null || !channel.isOpen())
+				return;
+
+			if (LOG.isDebugEnabled())
+				LOG.debug("sending ping for tunnel id " + tunnelId + " to " + channel.getRemoteAddress());
+
+			final HttpResponse response = HttpTunnelMessageUtils.createTunnelPingResponse(tunnelId);
+			Channels.write(channel, response);
+		}
+	}
+
+	private class PingTimeout implements Runnable {
+		@Override
+		public void run() {
+			// We haven't received any poll in 2 * the ping delay, the channel is dead
+			internalClose(true, Channels.future(HttpTunnelAcceptedChannel.this));
+		}
 	}
 }

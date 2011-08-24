@@ -223,6 +223,18 @@ public class HttpTunnelMessageUtils {
 		return isResponseWithCode(response, HttpResponseStatus.OK);
 	}
 
+	public static HttpResponse createTunnelPingResponse(String tunnelId) {
+		final HttpResponse response = createResponseTemplate(HttpResponseStatus.NO_CONTENT, null);
+
+		response.setHeader(HttpHeaders.Names.SET_COOKIE, tunnelId);
+
+		return response;
+	}
+
+	public static boolean isPingResponse(HttpResponse response) {
+		return isResponseWithCode(response, HttpResponseStatus.NO_CONTENT);
+	}
+
 	public static boolean hasContents(HttpResponse response, byte[] expectedContents) {
 		if (response.getContent() != null
 				&& HttpHeaders.getContentLength(response, 0) == expectedContents.length

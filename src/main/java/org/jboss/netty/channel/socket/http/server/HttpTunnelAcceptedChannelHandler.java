@@ -84,6 +84,8 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 		final InetSocketAddress remoteAddress = (InetSocketAddress) ctx.getChannel().getRemoteAddress();
 		final HttpTunnelAcceptedChannel tunnel = parent.createTunnel(remoteAddress);
 
+		tunnel.ping();
+
 		if (LOG.isDebugEnabled())
 			LOG.debug("open tunnel request received from " + ctx.getChannel().getRemoteAddress() + " - allocated ID " + tunnel.getTunnelId());
 
@@ -97,6 +99,8 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 			this.respondWith(ctx, HttpTunnelMessageUtils.createTunnelCloseResponse()).addListener(ChannelFutureListener.CLOSE);
 			return;
 		}
+
+		tunnel.ping();
 
 		if (LOG.isDebugEnabled())
 			LOG.debug("close tunnel request received for tunnel " + tunnel.getTunnelId());
@@ -112,6 +116,8 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 			this.respondWith(ctx, HttpTunnelMessageUtils.createTunnelCloseResponse()).addListener(ChannelFutureListener.CLOSE);
 			return;
 		}
+
+		tunnel.ping();
 
 		if (LOG.isDebugEnabled())
 			LOG.debug("send data request received for tunnel " + tunnel.getTunnelId());
@@ -132,6 +138,8 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 			this.respondWith(ctx, HttpTunnelMessageUtils.createTunnelCloseResponse()).addListener(ChannelFutureListener.CLOSE);
 			return;
 		}
+
+		tunnel.ping();
 
 		if (LOG.isDebugEnabled())
 			LOG.debug("poll data request received for tunnel " + tunnel.getTunnelId());
