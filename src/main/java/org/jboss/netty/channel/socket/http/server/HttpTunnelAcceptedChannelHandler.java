@@ -47,17 +47,15 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 	private static final InternalLogger LOG = InternalLoggerFactory.getInstance(HttpTunnelAcceptedChannelHandler.class);
 
 	private final HttpTunnelServerChannel parent;
-	private final String userAgent;
 
 	public HttpTunnelAcceptedChannelHandler(HttpTunnelServerChannel parent) {
 		this.parent = parent;
-
-		userAgent = parent.getConfig().getUserAgent();
 	}
 
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 		final HttpRequest request = (HttpRequest) e.getMessage();
+		final String userAgent = parent.getConfig().getUserAgent();
 
 		try {
 			// send channel
