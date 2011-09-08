@@ -159,14 +159,14 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 	 * sent.
 	 */
 	private void respondWithRejection(ChannelHandlerContext ctx, HttpRequest rejectedRequest, String errorMessage) {
-		if (LOG.isWarnEnabled()) {
+		if (LOG.isDebugEnabled()) {
 			final SocketAddress remoteAddress = ctx.getChannel().getRemoteAddress();
 
 			String tunnelId = HttpTunnelMessageUtils.extractTunnelId(rejectedRequest);
 			if (tunnelId == null)
 				tunnelId = "<UNKNOWN>";
 
-			LOG.warn("Rejecting request from " + remoteAddress + " representing tunnel " + tunnelId + ": " + errorMessage);
+			LOG.debug("Rejecting request from " + remoteAddress + " representing tunnel " + tunnelId + ": " + errorMessage);
 		}
 
 		final HttpResponse rejection = HttpTunnelMessageUtils.createRejection(rejectedRequest, errorMessage);
