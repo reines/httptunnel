@@ -15,13 +15,16 @@
  */
 package org.jboss.netty.channel.socket.http.server;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.channels.ClosedChannelException;
 
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.channel.socket.http.util.HttpTunnelMessageUtils;
@@ -76,6 +79,18 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 		catch (Exception ex) {
 			this.respondWithRejection(ctx, request, ex.getMessage());
 		}
+	}
+
+	@Override
+	public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
+		final Throwable error = e.getCause();
+
+		if (error instanceof IOException
+		|| error instanceof ClosedChannelException)
+			return;
+
+		if (LOG.isWarnEnabled())
+			LOG.warn("Exception from HttpTunnel accepted channel handler: " + error);
 	}
 
 	private void handleOpenTunnel(ChannelHandlerContext ctx) {

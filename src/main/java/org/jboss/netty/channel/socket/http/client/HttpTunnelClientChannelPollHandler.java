@@ -15,10 +15,14 @@
  */
 package org.jboss.netty.channel.socket.http.client;
 
+import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
+
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.channel.socket.http.util.HttpTunnelMessageUtils;
@@ -103,6 +107,18 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 			if (LOG.isWarnEnabled())
 				LOG.warn("non-OK response received for poll on tunnel " + tunnelId);
 		}
+	}
+
+	@Override
+	public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
+		final Throwable error = e.getCause();
+
+		if (error instanceof IOException
+		|| error instanceof ClosedChannelException)
+			return;
+
+		if (LOG.isWarnEnabled())
+			LOG.warn("Exception from HttpTunnel poll handler: " + error);
 	}
 
 	private void sendPoll(Channel channel) {
