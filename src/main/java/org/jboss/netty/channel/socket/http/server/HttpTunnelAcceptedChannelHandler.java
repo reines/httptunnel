@@ -85,9 +85,14 @@ class HttpTunnelAcceptedChannelHandler extends SimpleChannelUpstreamHandler {
 	public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws Exception {
 		final Throwable error = e.getCause();
 
-		if (error instanceof IOException
-		|| error instanceof ClosedChannelException)
+		if (error instanceof IOException				// Connection reset etc
+		|| error instanceof ClosedChannelException
+		|| error instanceof IllegalArgumentException) {	// Invalid protocol format - bots etc
+			if (LOG.isDebugEnabled())
+				LOG.debug("Exception from HttpTunnel send handler: " + error);
+
 			return;
+		}
 
 		if (LOG.isWarnEnabled())
 			LOG.warn("Exception from HttpTunnel accepted channel handler: " + error);
