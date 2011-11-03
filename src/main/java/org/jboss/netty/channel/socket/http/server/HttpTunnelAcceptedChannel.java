@@ -15,39 +15,23 @@
  */
 package org.jboss.netty.channel.socket.http.server;
 
-import java.net.InetSocketAddress;
-import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.channel.AbstractChannel;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelFactory;
-import org.jboss.netty.channel.ChannelFuture;
-import org.jboss.netty.channel.ChannelFutureListener;
-import org.jboss.netty.channel.ChannelPipeline;
-import org.jboss.netty.channel.ChannelSink;
-import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.socket.SocketChannel;
 import org.jboss.netty.channel.socket.http.IncomingBuffer;
 import org.jboss.netty.channel.socket.http.SaturationManager;
 import org.jboss.netty.channel.socket.http.SaturationStateChange;
-import org.jboss.netty.channel.socket.http.util.ChannelFutureAggregator;
-import org.jboss.netty.channel.socket.http.util.ForwardingFutureListener;
-import org.jboss.netty.channel.socket.http.util.HttpTunnelMessageUtils;
-import org.jboss.netty.channel.socket.http.util.QueuedResponse;
-import org.jboss.netty.channel.socket.http.util.WriteSplitter;
+import org.jboss.netty.channel.socket.http.util.*;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.logging.InternalLogger;
 import org.jboss.netty.logging.InternalLoggerFactory;
+
+import java.net.InetSocketAddress;
+import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Represents the server end of an HTTP tunnel, created after a legal tunnel
@@ -168,17 +152,21 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 	}
 
 	synchronized ChannelFuture internalSetInterestOps(int ops, ChannelFuture future) {
-		super.setInterestOpsNow(ops);
-		Channels.fireChannelInterestChanged(this);
-
-		// Update the incoming buffer
-		incomingBuffer.onInterestOpsChanged();
-
+        if (getInterestOps() != ops)
+            setAndNotifyInterestedOpsChange(ops);
 		future.setSuccess();
 		return future;
 	}
 
-	synchronized void internalReceiveMessage(ChannelBuffer message) {
+    private void setAndNotifyInterestedOpsChange(int ops) {
+        super.setInterestOpsNow(ops);
+        Channels.fireChannelInterestChanged(this);
+
+        // Update the incoming buffer
+        incomingBuffer.onInterestOpsChanged();
+    }
+
+    synchronized void internalReceiveMessage(ChannelBuffer message) {
 		if (!opened.get()) {
 			if (LOG.isWarnEnabled())
 				LOG.warn("Received message while channel is closed");
