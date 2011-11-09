@@ -1,11 +1,17 @@
 package org.jboss.netty.channel.socket.http.client;
 
-import java.net.SocketAddress;
-
 import org.jboss.netty.channel.socket.SocketChannelConfig;
 import org.jboss.netty.channel.socket.http.DefaultHttpTunnelChannelConfig;
+import org.jboss.netty.logging.InternalLogger;
+import org.jboss.netty.logging.InternalLoggerFactory;
+
+import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
+import java.net.SocketAddress;
+import java.net.URL;
 
 public class DefaultHttpTunnelClientChannelConfig extends DefaultHttpTunnelChannelConfig implements HttpTunnelClientChannelConfig {
+    private static final InternalLogger LOG = InternalLoggerFactory.getInstance(DefaultHttpTunnelClientChannelConfig.class);
 
 	public static final String DEFAULT_USER_AGENT = "HttpTunnelClient";
 
@@ -33,8 +39,22 @@ public class DefaultHttpTunnelClientChannelConfig extends DefaultHttpTunnelChann
 	@Override
 	public boolean setOption(String key, Object value) {
 		if (PROXY_ADDRESS_OPTION.equalsIgnoreCase(key)) {
-			this.setProxyAddress((SocketAddress) value);
-			return true;
+            SocketAddress proxyAddress = null;
+            if (value instanceof SocketAddress) proxyAddress = (SocketAddress) value;
+            if (value instanceof String) {
+                try {
+                    URL proxyAddressUrl = new URL((String)value);
+                    proxyAddress = new InetSocketAddress(proxyAddressUrl.getHost(), proxyAddressUrl.getPort());
+                } catch (MalformedURLException e) {
+                    LOG.warn("Failed to configure http proxy", e);
+                    return false;
+                }
+            }
+			if (proxyAddress != null) {
+                this.setProxyAddress(proxyAddress);
+                return true;
+            }
+            return false;
 		}
 
 		if (USER_AGENT_OPTION.equalsIgnoreCase(key)) {
