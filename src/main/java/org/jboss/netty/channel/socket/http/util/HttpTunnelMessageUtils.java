@@ -303,7 +303,7 @@ public class HttpTunnelMessageUtils {
 	}
 
 	private static boolean isResponseWithCode(HttpResponse response, HttpResponseStatus status) {
-		return HttpVersion.HTTP_1_1.equals(response.getProtocolVersion()) && status.equals(response.getStatus());
+		return status.equals(response.getStatus());
 	}
 
 	private static HttpResponse createOKResponseTemplate(ChannelBuffer data) {
