@@ -45,13 +45,8 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
  */
 public class HttpTunnelMessageUtils {
 
-	private static final String HTTP_URL_PREFIX = "http://";
-
-	/**
-	 * An upper bound is enforced on the size of message bodies, so as to ensure
-	 * we do not dump large chunks of data on either peer.
-	 */
-	public static final int MAX_BODY_SIZE = 16 * 1024;
+	public static final HttpVersion HTTP_VERSION = HttpVersion.HTTP_1_0;
+	public static final int MAX_BODY_SIZE = 1024 * 1024; // 1Mb
 
 	private static final String OPEN_TUNNEL_REQUEST_URI = "/http-tunnel/open";
 	private static final String CLOSE_TUNNEL_REQUEST_URI = "/http-tunnel/close";
@@ -153,8 +148,9 @@ public class HttpTunnelMessageUtils {
 	}
 
 	private static HttpRequest createRequestTemplate(String host, String tunnelId, String uri, String userAgent) {
-		final HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, createCompleteUri(host, uri));
+		final HttpRequest request = new DefaultHttpRequest(HTTP_VERSION, HttpMethod.POST, createCompleteUri(host, uri));
 
+		request.setHeader(HttpHeaders.Names.CONNECTION, "Keep-Alive");
 		request.setHeader(HttpHeaders.Names.HOST, host);
 		request.setHeader(HttpHeaders.Names.USER_AGENT, userAgent);
 
@@ -165,9 +161,9 @@ public class HttpTunnelMessageUtils {
 	}
 
 	private static String createCompleteUri(String host, String uri) {
-		final StringBuilder builder = new StringBuilder(HTTP_URL_PREFIX.length() + host.length() + uri.length());
+		final StringBuilder builder = new StringBuilder(7 + host.length() + uri.length());
 
-		builder.append(HTTP_URL_PREFIX);
+		builder.append("http://");
 		builder.append(host);
 		builder.append(uri);
 
@@ -271,10 +267,11 @@ public class HttpTunnelMessageUtils {
 	}
 
 	public static HttpResponse createRejection(HttpRequest request, String reason) {
-		final HttpVersion version = request != null ? request.getProtocolVersion() : HttpVersion.HTTP_1_1;
+		final HttpVersion version = request != null ? request.getProtocolVersion() : HTTP_VERSION;
 		final ChannelBuffer reasonBuffer = ChannelBuffers.wrappedBuffer(toBytes(reason));
 		final HttpResponse response = new DefaultHttpResponse(version, HttpResponseStatus.BAD_REQUEST);
 
+		response.setHeader(HttpHeaders.Names.CONNECTION, "Keep-Alive");
 		response.setHeader(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=\"utf-8\"");
 		response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, Integer.toString(reasonBuffer.readableBytes()));
 		response.setContent(reasonBuffer);
@@ -311,17 +308,18 @@ public class HttpTunnelMessageUtils {
 	}
 
 	private static HttpResponse createResponseTemplate(HttpResponseStatus status, ChannelBuffer data) {
-		final HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, status);
+		final HttpResponse response = new DefaultHttpResponse(HTTP_VERSION, status);
+
+		response.setHeader(HttpHeaders.Names.CONNECTION, "Keep-Alive");
 
 		if (data != null) {
 			response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, Integer.toString(data.readableBytes()));
 			response.setHeader(HttpHeaders.Names.CONTENT_TYPE, "application/octet-stream");
-			response.setContent(data);
 		}
-		else {
+		else
 			response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, "0");
-			response.setContent(null);
-		}
+
+		response.setContent(data);
 
 		return response;
 	}
