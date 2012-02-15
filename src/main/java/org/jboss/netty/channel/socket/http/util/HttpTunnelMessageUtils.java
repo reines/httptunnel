@@ -150,7 +150,6 @@ public class HttpTunnelMessageUtils {
 	private static HttpRequest createRequestTemplate(String host, String tunnelId, String uri, String userAgent) {
 		final HttpRequest request = new DefaultHttpRequest(HTTP_VERSION, HttpMethod.POST, createCompleteUri(host, uri));
 
-		request.setHeader(HttpHeaders.Names.CONNECTION, "Keep-Alive");
 		request.setHeader(HttpHeaders.Names.HOST, host);
 		request.setHeader(HttpHeaders.Names.USER_AGENT, userAgent);
 
@@ -215,6 +214,10 @@ public class HttpTunnelMessageUtils {
 		return isResponseWithCode(response, HttpResponseStatus.CREATED);
 	}
 
+	public static boolean isProxyAuthResponse(HttpResponse response) {
+		return isResponseWithCode(response, HttpResponseStatus.PROXY_AUTHENTICATION_REQUIRED);
+	}
+
 	public static boolean isOKResponse(HttpResponse response) {
 		return isResponseWithCode(response, HttpResponseStatus.OK);
 	}
@@ -271,7 +274,6 @@ public class HttpTunnelMessageUtils {
 		final ChannelBuffer reasonBuffer = ChannelBuffers.wrappedBuffer(toBytes(reason));
 		final HttpResponse response = new DefaultHttpResponse(version, HttpResponseStatus.BAD_REQUEST);
 
-		response.setHeader(HttpHeaders.Names.CONNECTION, "Keep-Alive");
 		response.setHeader(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=\"utf-8\"");
 		response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, Integer.toString(reasonBuffer.readableBytes()));
 		response.setContent(reasonBuffer);
@@ -309,8 +311,6 @@ public class HttpTunnelMessageUtils {
 
 	private static HttpResponse createResponseTemplate(HttpResponseStatus status, ChannelBuffer data) {
 		final HttpResponse response = new DefaultHttpResponse(HTTP_VERSION, status);
-
-		response.setHeader(HttpHeaders.Names.CONNECTION, "Keep-Alive");
 
 		if (data != null) {
 			response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, Integer.toString(data.readableBytes()));

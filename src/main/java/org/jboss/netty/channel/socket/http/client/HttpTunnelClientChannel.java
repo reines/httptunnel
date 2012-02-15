@@ -60,8 +60,7 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 
 	private static final InternalLogger LOG = InternalLoggerFactory.getInstance(HttpTunnelClientChannel.class);
 
-	private final SocketChannel sendChannel;
-	private final SocketChannel pollChannel;
+	private final ClientSocketChannelFactory outboundFactory;
 
 	private final HttpTunnelClientChannelConfig config;
 	private final SaturationManager saturationManager;
@@ -71,11 +70,19 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 	private final AtomicReference<ConnectState> connectState;
 	private final AtomicReference<ChannelFuture> connectFuture;
 
+	private final HttpTunnelClientChannelProxyHandler sendHttpHandler;
+	private final HttpTunnelClientChannelSendHandler sendHandler;
+
+	private final HttpTunnelClientChannelProxyHandler pollHttpHandler;
+	private final HttpTunnelClientChannelPollHandler pollHandler;
+
+	private final IncomingBuffer<ChannelBuffer> incomingBuffer;
+
+	private SocketChannel sendChannel;
+	private SocketChannel pollChannel;
+
 	private volatile String tunnelId;
 	private volatile InetSocketAddress remoteAddress;
-
-	private final WorkerCallbacks callbackProxy;
-	private final IncomingBuffer<ChannelBuffer> incomingBuffer;
 
 	/**
 	 * @see HttpTunnelClientChannelFactory#newChannel(ChannelPipeline)
@@ -83,15 +90,23 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 	protected HttpTunnelClientChannel(ChannelFactory factory, ChannelPipeline pipeline, HttpTunnelClientChannelSink sink, ClientSocketChannelFactory outboundFactory, ChannelGroup realConnections) {
 		super (null, factory, pipeline, sink);
 
-		callbackProxy = new WorkerCallbacks();
+		this.outboundFactory = outboundFactory;
+
+		final WorkerCallbacks callbackProxy = new WorkerCallbacks();
 
 		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this);
 
-		sendChannel = outboundFactory.newChannel(this.createSendPipeline());
-		pollChannel = outboundFactory.newChannel(this.createPollPipeline());;
+		sendChannel = outboundFactory.newChannel(Channels.pipeline());
+		pollChannel = outboundFactory.newChannel(Channels.pipeline());
 
 		config = new DefaultHttpTunnelClientChannelConfig(sendChannel.getConfig(), pollChannel.getConfig());
 		saturationManager = new SaturationManager(config.getWriteBufferLowWaterMark(), config.getWriteBufferHighWaterMark());
+
+		sendHttpHandler = new HttpTunnelClientChannelProxyHandler(config);
+		sendHandler = new HttpTunnelClientChannelSendHandler(callbackProxy);
+
+		pollHttpHandler = new HttpTunnelClientChannelProxyHandler(config);
+		pollHandler = new HttpTunnelClientChannelPollHandler(callbackProxy);
 
 		opened = new AtomicBoolean(true);
 		bindState = new AtomicReference<BindState>(BindState.UNBOUND);
@@ -100,6 +115,9 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 
 		tunnelId = null;
 		remoteAddress = null;
+
+		this.initSendPipeline(sendChannel.getPipeline());
+		this.initPollPipeline(pollChannel.getPipeline());
 
 		realConnections.add(sendChannel);
 		realConnections.add(pollChannel);
@@ -450,27 +468,21 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		Channels.fireExceptionCaught(this, cause);
 	}
 
-	private ChannelPipeline createSendPipeline() {
-		final ChannelPipeline pipeline = Channels.pipeline();
-
+	private void initSendPipeline(ChannelPipeline pipeline) {
 		pipeline.addLast("reqencoder", new HttpRequestEncoder()); // downstream
 		pipeline.addLast("respdecoder", new HttpResponseDecoder()); // upstream
 		pipeline.addLast("aggregator", new HttpChunkAggregator(HttpTunnelMessageUtils.MAX_BODY_SIZE)); // upstream
-		pipeline.addLast(HttpTunnelClientChannelSendHandler.NAME, new HttpTunnelClientChannelSendHandler(callbackProxy)); // both
+		pipeline.addLast(HttpTunnelClientChannelProxyHandler.NAME, sendHttpHandler); // proxy auth, etc
+		pipeline.addLast(HttpTunnelClientChannelSendHandler.NAME, sendHandler); // both
 		pipeline.addLast("writeFragmenter", new WriteFragmenter(HttpTunnelMessageUtils.MAX_BODY_SIZE));
-
-		return pipeline;
 	}
 
-	private ChannelPipeline createPollPipeline() {
-		final ChannelPipeline pipeline = Channels.pipeline();
-
+	private void initPollPipeline(ChannelPipeline pipeline) {
 		pipeline.addLast("reqencoder", new HttpRequestEncoder()); // downstream
 		pipeline.addLast("respdecoder", new HttpResponseDecoder()); // upstream
 		pipeline.addLast("aggregator", new HttpChunkAggregator(HttpTunnelMessageUtils.MAX_BODY_SIZE)); // upstream
-		pipeline.addLast(HttpTunnelClientChannelPollHandler.NAME, new HttpTunnelClientChannelPollHandler(callbackProxy)); // both
-
-		return pipeline;
+		pipeline.addLast(HttpTunnelClientChannelProxyHandler.NAME, pollHttpHandler); // proxy auth, etc
+		pipeline.addLast(HttpTunnelClientChannelPollHandler.NAME, pollHandler); // both
 	}
 
 	void updateSaturationStatus(int queueSizeDelta) {
@@ -535,16 +547,85 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 
 		@Override
 		public void fullyEstablished() {
-			connectState.set(ConnectState.CONNECTED);
+			// We were already connected so don't fire events again
+			if (!connectState.compareAndSet(ConnectState.CONNECTING, ConnectState.CONNECTED))
+				return;
+
 			connectFuture.get().setSuccess();
 
 			Channels.fireChannelConnected(HttpTunnelClientChannel.this, remoteAddress);
 		}
 
-		@Override
-		public synchronized void underlyingChannelFailed() {
+		private synchronized void underlyingChannelReconnectFailed(Throwable cause) {
 			// One (or both) of the underlying channels has failed - shut down
 			internalClose(Channels.future(HttpTunnelClientChannel.this));
+		}
+
+		@Override
+		public synchronized void underlyingChannelFailed() {
+			// The send channel has died, re-open it
+			if (!sendChannel.isOpen()) {
+				final SocketAddress localAddress = sendChannel.getLocalAddress();
+				final SocketAddress remoteAddress = sendChannel.getRemoteAddress();
+
+				// Open a new channel using the send pipeline
+				final ChannelPipeline pipeline = Channels.pipeline();
+				HttpTunnelClientChannel.this.initSendPipeline(pipeline);
+				sendChannel = outboundFactory.newChannel(pipeline);
+
+				// Bind to the same local address as before
+				sendChannel.bind(localAddress).addListener(new ChannelFutureListener() {
+					@Override
+					public void operationComplete(ChannelFuture future) throws Exception {
+						if (!future.isSuccess()) {
+							WorkerCallbacks.this.underlyingChannelReconnectFailed(future.getCause());
+							return;
+						}
+
+						// Connect to the same remote address as before
+						sendChannel.connect(remoteAddress).addListener(new ChannelFutureListener() {
+							@Override
+							public void operationComplete(ChannelFuture future) throws Exception {
+								if (!future.isSuccess()) {
+									WorkerCallbacks.this.underlyingChannelReconnectFailed(future.getCause());
+								}
+							}
+						});
+					}
+				});
+			}
+
+			// The poll channel has died, re-open it
+			if (!pollChannel.isOpen()) {
+				final SocketAddress localAddress = pollChannel.getLocalAddress();
+				final SocketAddress remoteAddress = pollChannel.getRemoteAddress();
+
+				// Open a new channel using the poll pipeline
+				final ChannelPipeline pipeline = Channels.pipeline();
+				HttpTunnelClientChannel.this.initPollPipeline(pipeline);
+				pollChannel = outboundFactory.newChannel(pipeline);
+
+				// Bind to the same local address as before
+				pollChannel.bind(localAddress).addListener(new ChannelFutureListener() {
+					@Override
+					public void operationComplete(ChannelFuture future) throws Exception {
+						if (!future.isSuccess()) {
+							WorkerCallbacks.this.underlyingChannelReconnectFailed(future.getCause());
+							return;
+						}
+
+						// Connect to the same remote address as before
+						pollChannel.connect(remoteAddress).addListener(new ChannelFutureListener() {
+							@Override
+							public void operationComplete(ChannelFuture future) throws Exception {
+								if (!future.isSuccess()) {
+									WorkerCallbacks.this.underlyingChannelReconnectFailed(future.getCause());
+								}
+							}
+						});
+					}
+				});
+			}
 		}
 
 		@Override
@@ -582,6 +663,11 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		@Override
 		public String getUserAgent() {
 			return config.getUserAgent();
+		}
+
+		@Override
+		public boolean isConnecting() {
+			return HttpTunnelClientChannel.this.connectState.get() == ConnectState.CONNECTING;
 		}
 
 		@Override

@@ -77,28 +77,33 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 
 	@Override
 	public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-		if (tunnelId != null)
-			return;
+		// If this tunnel has already been opened then don't try open it
+		if (tunnelId == null) {
+			if (LOG.isDebugEnabled())
+				LOG.debug("connection to " + e.getValue() + " succeeded - sending open tunnel request");
 
-		if (LOG.isDebugEnabled())
-			LOG.debug("connection to " + e.getValue() + " succeeded - sending open tunnel request");
+			final HttpRequest request = HttpTunnelMessageUtils.createOpenTunnelRequest(tunnelChannel.getServerHostName(), tunnelChannel.getUserAgent());
+			final Channel channel = ctx.getChannel();
+			final DownstreamMessageEvent event = new DownstreamMessageEvent(channel, Channels.future(channel), request, channel.getRemoteAddress());
 
-		final HttpRequest request = HttpTunnelMessageUtils.createOpenTunnelRequest(tunnelChannel.getServerHostName(), tunnelChannel.getUserAgent());
-		final Channel channel = ctx.getChannel();
-		final DownstreamMessageEvent event = new DownstreamMessageEvent(channel, Channels.future(channel), request, channel.getRemoteAddress());
+			queuedWrites.offer(event);
+			pendingRequestCount.incrementAndGet();
+		}
 
-		queuedWrites.offer(event);
-		pendingRequestCount.incrementAndGet();
+		// Send our first chunk of data
 		this.sendQueuedData(ctx);
 	}
 
 	@Override
 	public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-		if (!tunnelChannel.isConnected())
+		if (!tunnelChannel.isConnecting() && !tunnelChannel.isConnected())
 			return;
 
 		if (LOG.isDebugEnabled())
 			LOG.debug("Send channel for tunnel " + tunnelId + " failed");
+
+		// TODO: What state was our last send in? if the last send failed stick it on the front of the queue?
+		pendingRequestCount.decrementAndGet();
 
 		// The send channel was closed forcefully rather than by a shutdown
 		tunnelChannel.underlyingChannelFailed();
@@ -109,10 +114,10 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 		final HttpResponse response = (HttpResponse) e.getMessage();
 
 		if (HttpTunnelMessageUtils.isOKResponse(response)) {
-			long roundTripTime = System.nanoTime() - sendRequestTime;
-
-			if (LOG.isDebugEnabled())
-				LOG.debug("OK response received for tunnel " + tunnelId + ", after " + roundTripTime + " ns");
+			if (LOG.isDebugEnabled()) {
+				long rtt = System.nanoTime() - sendRequestTime;
+				LOG.debug("OK response received for tunnel " + tunnelId + ", after " + rtt + " ns");
+			}
 
 			this.sendNextAfterResponse(ctx);
 		}

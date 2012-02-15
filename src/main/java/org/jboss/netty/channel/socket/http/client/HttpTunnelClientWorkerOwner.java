@@ -82,5 +82,6 @@ interface HttpTunnelClientWorkerOwner {
 
 	public String getUserAgent();
 
+	public boolean isConnecting();
 	public boolean isConnected();
 }

@@ -62,20 +62,26 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 
 	@Override
 	public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-		if (LOG.isDebugEnabled())
-			LOG.debug("Poll channel for tunnel " + tunnelId + " established");
+		if (tunnelChannel.isConnecting() || tunnelChannel.isConnected()) {
+			if (LOG.isDebugEnabled())
+				LOG.debug("Poll channel for tunnel " + tunnelId + " established");
 
-		tunnelChannel.fullyEstablished();
+			tunnelChannel.fullyEstablished();
+		}
+
+		// Send our first poll data request
 		this.sendPoll(ctx.getChannel());
 	}
 
 	@Override
 	public void channelDisconnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-		if (!tunnelChannel.isConnected())
+		if (!tunnelChannel.isConnecting() && !tunnelChannel.isConnected())
 			return;
 
 		if (LOG.isDebugEnabled())
 			LOG.debug("Poll channel for tunnel " + tunnelId + " failed");
+
+		// TODO: What state was our last send in? if the last send failed stick it on the front of the queue?
 
 		// The poll channel was closed forcefully rather than by a shutdown
 		tunnelChannel.underlyingChannelFailed();
@@ -86,17 +92,19 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 		final HttpResponse response = (HttpResponse) e.getMessage();
 
 		if (HttpTunnelMessageUtils.isOKResponse(response)) {
-			long rtTime = System.nanoTime() - pollTime;
-			if (LOG.isDebugEnabled())
-				LOG.debug("OK response received for poll on tunnel " + tunnelId + " after " + rtTime + " ns");
+			if (LOG.isDebugEnabled()) {
+				long rtt = System.nanoTime() - pollTime;
+				LOG.debug("OK response received for poll on tunnel " + tunnelId + " after " + rtt + " ns");
+			}
 
 			tunnelChannel.onMessageReceived(response.getContent());
 			this.sendPoll(ctx.getChannel());
 		}
 		else if (HttpTunnelMessageUtils.isPingResponse(response)) {
-			long rtTime = System.nanoTime() - pollTime;
-			if (LOG.isDebugEnabled())
-				LOG.debug("Ping response received for poll on tunnel " + tunnelId + " after " + rtTime + " ns");
+			if (LOG.isDebugEnabled()) {
+				long rtt = System.nanoTime() - pollTime;
+				LOG.debug("Ping response received for poll on tunnel " + tunnelId + " after " + rtt + " ns");
+			}
 
 			this.sendPoll(ctx.getChannel());
 		}

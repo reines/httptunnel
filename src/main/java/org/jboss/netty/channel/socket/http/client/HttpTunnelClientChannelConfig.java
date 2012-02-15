@@ -67,4 +67,9 @@ public interface HttpTunnelClientChannelConfig extends HttpTunnelChannelConfig {
 	 * should be used.
 	 */
 	public SocketAddress getProxyAddress();
+
+	public void setProxyCredentials(String username, String password);
+
+	public String getProxyUsername();
+	public String getProxyPassword();
 }
