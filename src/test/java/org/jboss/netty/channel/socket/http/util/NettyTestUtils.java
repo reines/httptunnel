@@ -209,13 +209,6 @@ public class NettyTestUtils {
 		bootstrap.setOption("child.tcpNoDelay", true);
 		bootstrap.setOption("reuseAddress", true);
 
-		final String[] optionalOptions = { "proxyAddress", "proxyUsername", "proxyPassword" };
-		for (String key : optionalOptions) {
-			final String value = System.getProperty("org.jboss.netty.channel.socket.http." + key);
-			if (value != null)
-				bootstrap.setOption(key, value);
-		}
-
 		return bootstrap.bind(addr);
 	}
 

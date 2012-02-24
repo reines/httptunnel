@@ -15,10 +15,17 @@ public class DefaultHttpTunnelClientChannelConfig extends DefaultHttpTunnelChann
 
 	public static final String DEFAULT_USER_AGENT = "HttpTunnelClient";
 
+	public static final String USER_AGENT_OPTION = "userAgent";
 	public static final String PROXY_ADDRESS_OPTION = "proxyAddress";
 	public static final String PROXY_USERNAME_OPTION = "proxyUsername";
 	public static final String PROXY_PASSWORD_OPTION = "proxyPassword";
-	public static final String USER_AGENT_OPTION = "userAgent";
+
+	private static final String PROP_PKG = "org.jboss.netty.channel.socket.http.";
+
+	private static final String PROP_UserAgent =				PROP_PKG + USER_AGENT_OPTION;
+	private static final String PROP_ProxyAddress =				PROP_PKG + PROXY_ADDRESS_OPTION;
+	private static final String PROP_ProxyUsername =			PROP_PKG + PROXY_USERNAME_OPTION;
+	private static final String PROP_ProxyPassword =			PROP_PKG + PROXY_PASSWORD_OPTION;
 
 	private final SocketChannelConfig sendChannelConfig;
 	private final SocketChannelConfig pollChannelConfig;
@@ -32,10 +39,11 @@ public class DefaultHttpTunnelClientChannelConfig extends DefaultHttpTunnelChann
 		this.sendChannelConfig = sendChannelConfig;
 		this.pollChannelConfig = pollChannelConfig;
 
-		userAgent = DEFAULT_USER_AGENT;
-		proxyAddress = null;
-		proxyUsername = null;
-		proxyPassword = null;
+		userAgent = System.getProperty(PROP_UserAgent, DEFAULT_USER_AGENT);
+
+		this.setProxyAddress(System.getProperty(PROP_ProxyAddress));
+		proxyUsername = System.getProperty(PROP_ProxyUsername);
+		proxyPassword = System.getProperty(PROP_ProxyPassword);
 	}
 
 	/* HTTP TUNNEL SPECIFIC CONFIGURATION */
@@ -48,13 +56,8 @@ public class DefaultHttpTunnelClientChannelConfig extends DefaultHttpTunnelChann
             SocketAddress proxyAddress = null;
             if (value instanceof SocketAddress) proxyAddress = (SocketAddress) value;
             if (value instanceof String) {
-                try {
-                    URL proxyAddressUrl = new URL((String)value);
-                    proxyAddress = new InetSocketAddress(proxyAddressUrl.getHost(), proxyAddressUrl.getPort());
-                } catch (MalformedURLException e) {
-                    LOG.warn("Failed to configure http proxy", e);
-                    return false;
-                }
+            	this.setProxyAddress((String) value);
+            	return true;
             }
 			if (proxyAddress != null) {
                 this.setProxyAddress(proxyAddress);
@@ -79,6 +82,21 @@ public class DefaultHttpTunnelClientChannelConfig extends DefaultHttpTunnelChann
 		}
 
 		return super.setOption(key, value);
+	}
+
+	private void setProxyAddress(String proxyAddress) {
+		if (proxyAddress == null) {
+			this.proxyAddress = null;
+			return;
+		}
+
+        try {
+            final URL proxyAddressUrl = new URL(proxyAddress);
+            this.proxyAddress = new InetSocketAddress(proxyAddressUrl.getHost(), proxyAddressUrl.getPort());
+        }
+        catch (MalformedURLException e) {
+            LOG.warn("Failed to configure http proxy", e);
+        }
 	}
 
 	@Override

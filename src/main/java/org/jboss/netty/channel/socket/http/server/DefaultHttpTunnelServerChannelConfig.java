@@ -14,20 +14,25 @@ public class DefaultHttpTunnelServerChannelConfig implements HttpTunnelServerCha
 
 	public static final String DEFAULT_USER_AGENT = "HttpTunnelClient";
 
+	public static final String USER_AGENT_OPTION = "userAgent";
 	public static final String PIPELINE_FACTORY_OPTION = "pipelineFactory";
 	public static final String TUNNEL_ID_GENERATOR_OPTION = "tunnelIdGenerator";
-	public static final String USER_AGENT_OPTION = "userAgent";
 
+	private static final String PROP_PKG = "org.jboss.netty.channel.socket.http.";
+
+	private static final String PROP_UserAgent =				PROP_PKG + USER_AGENT_OPTION;
+
+	private String userAgent;
 	private ServerSocketChannel realChannel;
 	private TunnelIdGenerator tunnelIdGenerator;
-	private String userAgent;
 	private ChannelPipelineFactory pipelineFactory;
 
 	public DefaultHttpTunnelServerChannelConfig() {
+		userAgent = System.getProperty(PROP_UserAgent, DEFAULT_USER_AGENT);
+
 		realChannel = null;
 		tunnelIdGenerator = new DefaultTunnelIdGenerator();
 
-		userAgent = DEFAULT_USER_AGENT;
 		pipelineFactory = null;
 	}
 
