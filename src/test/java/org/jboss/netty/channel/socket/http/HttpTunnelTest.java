@@ -1,17 +1,17 @@
 /*
  * Copyright 2009 Red Hat, Inc.
  *
- * Red Hat licenses this file to you under the Apache License, version 2.0
- * (the "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at:
+ * Red Hat licenses this file to you under the Apache License, version 2.0 (the
+ * "License"); you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at:
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
 
 package org.jboss.netty.channel.socket.http;
@@ -59,44 +59,25 @@ import org.junit.Test;
 public class HttpTunnelTest {
 
 	private HttpTunnelClientChannelFactory clientFactory;
-
 	private HttpTunnelServerChannelFactory serverFactory;
-
 	private ClientBootstrap clientBootstrap;
-
 	private ServerBootstrap serverBootstrap;
-
-	ChannelGroup activeConnections;
-
-	ChannelHandler clientCaptureHandler;
-
-	ServerEndHandler connectionCaptureHandler;
-
-	Channel serverEnd;
-
-	CountDownLatch serverEndLatch;
-
-	ChannelBuffer receivedBytes;
-
-	CountDownLatch messageReceivedLatch;
-
-	ChannelBuffer clientReceivedBytes;
-
-	CountDownLatch clientMessageReceivedLatch;
-
+	private ChannelGroup activeConnections;
+	private ChannelHandler clientCaptureHandler;
+	private ServerEndHandler connectionCaptureHandler;
+	private Channel serverEnd;
+	private CountDownLatch serverEndLatch;
+	private ChannelBuffer receivedBytes;
+	private CountDownLatch messageReceivedLatch;
+	private ChannelBuffer clientReceivedBytes;
+	private CountDownLatch clientMessageReceivedLatch;
 	private Channel serverChannel;
 
 	@Before
 	public void setUp() throws UnknownHostException {
 		activeConnections = new DefaultChannelGroup();
-		clientFactory = new HttpTunnelClientChannelFactory(
-				new NioClientSocketChannelFactory(
-						Executors.newCachedThreadPool(),
-						Executors.newCachedThreadPool()));
-		serverFactory = new HttpTunnelServerChannelFactory(
-				new NioServerSocketChannelFactory(
-						Executors.newCachedThreadPool(),
-						Executors.newCachedThreadPool()));
+		clientFactory = new HttpTunnelClientChannelFactory(new NioClientSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool()));
+		serverFactory = new HttpTunnelServerChannelFactory(new NioServerSocketChannelFactory(Executors.newCachedThreadPool(), Executors.newCachedThreadPool()));
 
 		clientBootstrap = new ClientBootstrap(clientFactory);
 
@@ -131,8 +112,7 @@ public class HttpTunnelTest {
 		receivedBytes = ChannelBuffers.dynamicBuffer();
 		messageReceivedLatch = new CountDownLatch(1);
 
-		serverChannel = serverBootstrap.bind(new InetSocketAddress(InetAddress
-				.getLocalHost(), 12345));
+		serverChannel = serverBootstrap.bind(new InetSocketAddress(InetAddress.getLocalHost(), 12345));
 		activeConnections.add(serverChannel);
 	}
 
@@ -145,10 +125,10 @@ public class HttpTunnelTest {
 
 	@Test(timeout = 2000)
 	public void testConnectClientToServer() throws Exception {
-		final ChannelFuture connectFuture = clientBootstrap
-				.connect(new InetSocketAddress(InetAddress.getLocalHost(), 12345));
+		final ChannelFuture connectFuture = clientBootstrap.connect(new InetSocketAddress(InetAddress.getLocalHost(), 12345));
 
-		// Check we managed to connect within 1 second and we have a valid channel
+		// Check we managed to connect within 1 second and we have a valid
+		// channel
 		assertTrue(connectFuture.await(1000L));
 		assertTrue(connectFuture.isSuccess());
 		assertNotNull(connectFuture.getChannel());
@@ -156,21 +136,23 @@ public class HttpTunnelTest {
 		final Channel clientChannel = connectFuture.getChannel();
 		activeConnections.add(clientChannel);
 
-		// Check the address the server is bound to matches the one the client is connected to
-//		assertEquals(serverChannel.getLocalAddress(), clientChannel.getRemoteAddress());
+		// Check the address the server is bound to matches the one the client
+		// is connected to
+		// assertEquals(serverChannel.getLocalAddress(),
+		// clientChannel.getRemoteAddress());
 
 		assertTrue(serverEndLatch.await(1000, TimeUnit.MILLISECONDS));
 		assertNotNull(serverEnd);
 
-		// Check the address the client is bound to matches the one the server is connected to
-//		assertEquals(clientChannel.getLocalAddress(), serverEnd.getRemoteAddress());
+		// Check the address the client is bound to matches the one the server
+		// is connected to
+		// assertEquals(clientChannel.getLocalAddress(),
+		// serverEnd.getRemoteAddress());
 	}
 
 	@Test
 	public void testSendDataFromClientToServer() throws Exception {
-		ChannelFuture connectFuture = clientBootstrap
-				.connect(new InetSocketAddress(InetAddress.getLocalHost(),
-						12345));
+		ChannelFuture connectFuture = clientBootstrap.connect(new InetSocketAddress(InetAddress.getLocalHost(), 12345));
 		assertTrue(connectFuture.await(1000L));
 
 		Channel clientEnd = connectFuture.getChannel();
@@ -178,8 +160,7 @@ public class HttpTunnelTest {
 
 		assertTrue(serverEndLatch.await(1000, TimeUnit.MILLISECONDS));
 
-		ChannelFuture writeFuture = Channels.write(clientEnd,
-				NettyTestUtils.createData(100L));
+		ChannelFuture writeFuture = Channels.write(clientEnd, NettyTestUtils.createData(100L));
 		assertTrue(writeFuture.await(1000L));
 		assertTrue(writeFuture.isSuccess());
 
@@ -189,9 +170,7 @@ public class HttpTunnelTest {
 
 	@Test
 	public void testSendDataFromServerToClient() throws Exception {
-		ChannelFuture connectFuture = clientBootstrap
-				.connect(new InetSocketAddress(InetAddress.getLocalHost(),
-						12345));
+		ChannelFuture connectFuture = clientBootstrap.connect(new InetSocketAddress(InetAddress.getLocalHost(), 12345));
 		assertTrue(connectFuture.await(1000L));
 
 		Channel clientEnd = connectFuture.getChannel();
@@ -199,21 +178,18 @@ public class HttpTunnelTest {
 
 		assertTrue(serverEndLatch.await(1000, TimeUnit.MILLISECONDS));
 
-		ChannelFuture writeFuture = Channels.write(serverEnd,
-				NettyTestUtils.createData(4321L));
+		ChannelFuture writeFuture = Channels.write(serverEnd, NettyTestUtils.createData(4321L));
 		assertTrue(writeFuture.await(1000L));
 		assertTrue(writeFuture.isSuccess());
 
-		assertTrue(clientMessageReceivedLatch
-				.await(1000, TimeUnit.MILLISECONDS));
+		assertTrue(clientMessageReceivedLatch.await(1000, TimeUnit.MILLISECONDS));
 		assertEquals(4321L, clientReceivedBytes.readLong());
 	}
 
-	class ServerEndHandler extends SimpleChannelUpstreamHandler {
+	private class ServerEndHandler extends SimpleChannelUpstreamHandler {
 
 		@Override
-		public void channelConnected(ChannelHandlerContext ctx,
-				ChannelStateEvent e) throws Exception {
+		public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
 			serverEnd = e.getChannel();
 			activeConnections.add(serverEnd);
 			serverEndLatch.countDown();
@@ -221,18 +197,16 @@ public class HttpTunnelTest {
 		}
 
 		@Override
-		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e)
-				throws Exception {
+		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 			receivedBytes.writeBytes((ChannelBuffer) e.getMessage());
 			messageReceivedLatch.countDown();
 		}
 	}
 
-	class ClientEndHandler extends SimpleChannelUpstreamHandler {
+	private class ClientEndHandler extends SimpleChannelUpstreamHandler {
 
 		@Override
-		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e)
-				throws Exception {
+		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 			clientReceivedBytes.writeBytes((ChannelBuffer) e.getMessage());
 			clientMessageReceivedLatch.countDown();
 		}

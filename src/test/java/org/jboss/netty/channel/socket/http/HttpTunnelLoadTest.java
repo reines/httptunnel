@@ -3,14 +3,13 @@ package org.jboss.netty.channel.socket.http;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
 import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ChannelPipeline;
@@ -27,19 +26,6 @@ public class HttpTunnelLoadTest {
 	public static final int TIMEOUT = 2;
 	public static final int MESSAGE_COUNT = 100;
 	public static final int DATA_SIZE = 1024 * 256; // 256kb
-
-	private static Random random;
-
-	static {
-		random = new Random();
-	}
-
-	private static ChannelBuffer createMessage(int size) throws IOException {
-		final byte[] bytes = new byte[size];
-		random.nextBytes(bytes);
-
-		return ChannelBuffers.wrappedBuffer(bytes);
-	}
 
 	private class ThroughputIncomingChannelHandler extends OpenCloseIncomingChannelHandler<ChannelBuffer> {
 
@@ -80,7 +66,6 @@ public class HttpTunnelLoadTest {
 			super.messageReceived(ctx, e);
 
 			final ChannelBuffer buffer = (ChannelBuffer) e.getMessage();
-//			System.out.println("<- " + buffer);
 
 			receivedData += buffer.readableBytes();
 			if (receivedData >= expectedData)
@@ -94,14 +79,6 @@ public class HttpTunnelLoadTest {
 			sentData += e.getWrittenAmount();
 			if (sentData >= expectedData)
 				sentLatch.countDown();
-		}
-
-		@Override
-		public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-			final ChannelBuffer buffer = (ChannelBuffer) e.getMessage();
-//			System.out.println("-> " + buffer);
-
-			super.writeRequested(ctx, e);
 		}
 	};
 
@@ -144,7 +121,6 @@ public class HttpTunnelLoadTest {
 			super.messageReceived(ctx, e);
 
 			final ChannelBuffer buffer = (ChannelBuffer) e.getMessage();
-//			System.out.println("<- " + buffer);
 
 			receivedData += buffer.readableBytes();
 			if (receivedData >= expectedData)
@@ -158,14 +134,6 @@ public class HttpTunnelLoadTest {
 			sentData += e.getWrittenAmount();
 			if (sentData >= expectedData)
 				sentLatch.countDown();
-		}
-
-		@Override
-		public void writeRequested(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-			final ChannelBuffer buffer = (ChannelBuffer) e.getMessage();
-//			System.out.println("-> " + buffer);
-
-			super.writeRequested(ctx, e);
 		}
 	};
 
@@ -188,10 +156,10 @@ public class HttpTunnelLoadTest {
 	@Test
 	public void testLoad() throws InterruptedException, IOException {
 		// Create a buffer of the given size with random data in it
-		final ChannelBuffer message = HttpTunnelLoadTest.createMessage(DATA_SIZE);
+		final ChannelBuffer message = NettyTestUtils.createRandomData(DATA_SIZE);
 		assertTrue("failed to create dummy message", message.readableBytes() == DATA_SIZE);
 
-		final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
+		final InetSocketAddress addr = new InetSocketAddress(InetAddress.getLocalHost(), 8181);
 
 		final ThroughputIncomingChannelHandler serverHandler = new ThroughputIncomingChannelHandler(MESSAGE_COUNT * DATA_SIZE);
 		serverChannel = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {
