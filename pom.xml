@@ -108,7 +108,7 @@
     <repository>
       <id>central-deploy</id>
       <name>libs-release-local</name>
-      <url>http://174.129.12.54:8081/artifactory/libs-release-local</url>
+      <url>http://107.21.244.62:8081/artifactory/libs-release-local</url>
     </repository>
   </distributionManagement>
 </project>
