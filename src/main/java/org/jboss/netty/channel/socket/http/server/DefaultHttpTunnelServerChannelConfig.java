@@ -12,7 +12,7 @@ import org.jboss.netty.channel.socket.http.util.TunnelIdGenerator;
 
 public class DefaultHttpTunnelServerChannelConfig implements HttpTunnelServerChannelConfig {
 
-	public static final String DEFAULT_USER_AGENT = "HttpTunnelClient";
+	public static final String DEFAULT_USER_AGENT = "HttpTunnel";
 
 	public static final String USER_AGENT_OPTION = "userAgent";
 	public static final String PIPELINE_FACTORY_OPTION = "pipelineFactory";

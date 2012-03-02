@@ -13,7 +13,7 @@ import org.jboss.netty.logging.InternalLoggerFactory;
 public class DefaultHttpTunnelClientChannelConfig extends DefaultHttpTunnelChannelConfig implements HttpTunnelClientChannelConfig {
     private static final InternalLogger LOG = InternalLoggerFactory.getInstance(DefaultHttpTunnelClientChannelConfig.class);
 
-	public static final String DEFAULT_USER_AGENT = "HttpTunnelClient";
+	public static final String DEFAULT_USER_AGENT = "HttpTunnel";
 
 	public static final String USER_AGENT_OPTION = "userAgent";
 	public static final String PROXY_ADDRESS_OPTION = "proxyAddress";
