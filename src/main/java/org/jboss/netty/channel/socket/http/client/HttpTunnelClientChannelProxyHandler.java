@@ -1,18 +1,19 @@
 /*
- * Copyright 2009 Red Hat, Inc.
+ * Copyright 2011 The Netty Project
  *
- * Red Hat licenses this file to you under the Apache License, version 2.0
- * (the "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at:
+ * The Netty Project licenses this file to you under the Apache License, version
+ * 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
+
 package org.jboss.netty.channel.socket.http.client;
 
 import java.util.HashMap;
@@ -37,6 +38,15 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.logging.InternalLogger;
 import org.jboss.netty.logging.InternalLoggerFactory;
 
+/**
+ * Pipeline component which controls proxy authentication requests as well as
+ * injecting no-cache and keep-alive headers.
+ *
+ * @author The Netty Project (netty-dev@lists.jboss.org)
+ * @author Iain McGinniss (iain.mcginniss@onedrum.com)
+ * @author Jamie Furness (jamie@onedrum.com)
+ * @author OneDrum Ltd.
+ */
 class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 
 	public static final String NAME = "proxyHandler";
@@ -63,13 +73,15 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 			if (reqAuthSchemes.isEmpty())
 				throw new ProxyAuthenticationException("Malformed or missing proxy auth headers");
 
-			// Find the first auth scheme we support that is also supported by the server
+			// Find the first auth scheme we support that is also supported by
+			// the server
 			for (AuthScheme supportedScheme : proxyAuthSchemes) {
 				final String authParams = reqAuthSchemes.get(supportedScheme.getName().toLowerCase());
 				if (authParams == null)
 					continue;
 
-				// We found a supported auth scheme, parse the parameters and attempt to generate a header
+				// We found a supported auth scheme, parse the parameters and
+				// attempt to generate a header
 				final Map<String, String> params = new ParameterParser(authParams).split(',');
 
 				return new ProxyAuthHandler(supportedScheme, params);
@@ -128,7 +140,8 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 			if (LOG.isDebugEnabled())
 				LOG.debug("tunnel received HTTP 407 proxy auth required response");
 
-			// Generate a proxy authentication header - throws an exception if no supported auth method or credentials
+			// Generate a proxy authentication header - throws an exception if
+			// no supported auth method or credentials
 			if (proxyAuthHandler.getAndSet(ProxyAuthHandler.init(response.getHeaders(HttpHeaders.Names.PROXY_AUTHENTICATE))) != null)
 				throw new ProxyAuthenticationException("Received HTTP 407 response even though we already provided credentials");
 
@@ -151,8 +164,21 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 			request.setHeader(HttpHeaders.Names.PROXY_AUTHORIZATION, proxyAuthHeader);
 		}
 
-		request.setHeader(HttpHeaders.Names.CONNECTION, "Keep-Alive"); // request the connection be kept open for pipeling
-		request.setHeader(HttpHeaders.Names.PRAGMA, "No-Cache"); // request any proxy doesn't try give us a cached response
+		request.setHeader(HttpHeaders.Names.CONNECTION, "Keep-Alive"); // request
+																		// the
+																		// connection
+																		// be
+																		// kept
+																		// open
+																		// for
+																		// pipeling
+		request.setHeader(HttpHeaders.Names.PRAGMA, "No-Cache"); // request any
+																	// proxy
+																	// doesn't
+																	// try give
+																	// us a
+																	// cached
+																	// response
 
 		ctx.sendDownstream(e);
 	}

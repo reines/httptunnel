@@ -1,18 +1,19 @@
 /*
- * Copyright 2009 Red Hat, Inc.
+ * Copyright 2011 The Netty Project
  *
- * Red Hat licenses this file to you under the Apache License, version 2.0
- * (the "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at:
+ * The Netty Project licenses this file to you under the Apache License, version
+ * 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
+
 package org.jboss.netty.channel.socket.http.util;
 
 import java.io.UnsupportedEncodingException;
@@ -41,6 +42,7 @@ import org.jboss.netty.handler.codec.http.HttpVersion;
  *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
+ * @author Jamie Furness (jamie@onedrum.com)
  * @author OneDrum Ltd.
  */
 public class HttpTunnelMessageUtils {
@@ -178,9 +180,7 @@ public class HttpTunnelMessageUtils {
 			return false;
 		}
 
-		return userAgent.equals(request.getHeader(HttpHeaders.Names.USER_AGENT))
-			&& HttpMethod.POST.equals(request.getMethod())
-			&& uri.equals(decodedUri.getPath());
+		return userAgent.equals(request.getHeader(HttpHeaders.Names.USER_AGENT)) && HttpMethod.POST.equals(request.getMethod()) && uri.equals(decodedUri.getPath());
 	}
 
 	private static void setNoData(HttpRequest request) {
@@ -235,9 +235,7 @@ public class HttpTunnelMessageUtils {
 	}
 
 	public static boolean hasContents(HttpResponse response, byte[] expectedContents) {
-		if (response.getContent() != null
-				&& HttpHeaders.getContentLength(response, 0) == expectedContents.length
-				&& response.getContent().readableBytes() == expectedContents.length) {
+		if (response.getContent() != null && HttpHeaders.getContentLength(response, 0) == expectedContents.length && response.getContent().readableBytes() == expectedContents.length) {
 			final byte[] compareBytes = new byte[expectedContents.length];
 			response.getContent().readBytes(compareBytes);
 			return Arrays.equals(expectedContents, compareBytes);
@@ -286,8 +284,7 @@ public class HttpTunnelMessageUtils {
 	}
 
 	public static Object extractErrorMessage(HttpResponse response) {
-		if (response.getContent() == null
-				|| HttpHeaders.getContentLength(response, 0) == 0)
+		if (response.getContent() == null || HttpHeaders.getContentLength(response, 0) == 0)
 			return "";
 
 		final byte[] bytes = new byte[response.getContent().readableBytes()];

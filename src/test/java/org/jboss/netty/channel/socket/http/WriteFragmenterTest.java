@@ -49,7 +49,7 @@ public class WriteFragmenterTest {
 		fragmenter = new WriteFragmenter(100);
 
 		ChannelPipeline pipeline = Channels.pipeline();
-		pipeline.addLast(WriteFragmenter.NAME, fragmenter);
+		pipeline.addLast("fragmenter", fragmenter);
 		downstreamCatcher = new FakeChannelSink();
 		channel = new FakeSocketChannel(null, null, pipeline, downstreamCatcher);
 	}

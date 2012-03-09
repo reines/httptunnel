@@ -1,23 +1,26 @@
 /*
- * Copyright 2009 Red Hat, Inc.
+ * Copyright 2011 The Netty Project
  *
- * Red Hat licenses this file to you under the Apache License, version 2.0
- * (the "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at:
+ * The Netty Project licenses this file to you under the Apache License, version
+ * 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
+
 package org.jboss.netty.channel.socket.http.util;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.Channels;
@@ -35,11 +38,34 @@ import org.jboss.netty.channel.SimpleChannelDownstreamHandler;
  *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
+ * @author Jamie Furness (jamie@onedrum.com)
  * @author OneDrum Ltd.
  */
 public class WriteFragmenter extends SimpleChannelDownstreamHandler {
 
-	public static final String NAME = "writeFragmenter";
+	/**
+	 * Splits the given buffer in to multiple chunks based on the split
+	 * threshold.
+	 */
+	public static List<ChannelBuffer> split(ChannelBuffer buffer, int splitThreshold) {
+		final int listSize = (int) ((float) buffer.readableBytes() / splitThreshold);
+		final ArrayList<ChannelBuffer> fragmentList = new ArrayList<ChannelBuffer>(listSize);
+
+		if (buffer.readableBytes() > splitThreshold) {
+			int slicePosition = buffer.readerIndex();
+			while (slicePosition < buffer.writerIndex()) {
+				final int chunkSize = Math.min(splitThreshold, buffer.writerIndex() - slicePosition);
+				final ChannelBuffer chunk = buffer.slice(slicePosition, chunkSize);
+
+				fragmentList.add(chunk);
+				slicePosition += chunkSize;
+			}
+		}
+		else
+			fragmentList.add(ChannelBuffers.wrappedBuffer(buffer));
+
+		return fragmentList;
+	}
 
 	private int splitThreshold;
 
@@ -58,7 +84,7 @@ public class WriteFragmenter extends SimpleChannelDownstreamHandler {
 		if (data.readableBytes() <= splitThreshold)
 			super.writeRequested(ctx, e);
 		else {
-			final List<ChannelBuffer> fragments = WriteSplitter.split(data, splitThreshold);
+			final List<ChannelBuffer> fragments = WriteFragmenter.split(data, splitThreshold);
 			final ChannelFutureAggregator aggregator = new ChannelFutureAggregator(e.getFuture());
 
 			for (ChannelBuffer fragment : fragments) {

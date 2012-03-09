@@ -14,22 +14,37 @@
  * the License.
  */
 
-package org.jboss.netty.channel.socket.http.client;
+package org.jboss.netty.channel.socket.http.state;
 
 /**
- * An exception thrown by the {@link HttpTunnelClientChannel} upon proxy
- * authentication failure.
+ * Represents the bind state change of a channel - either it is not bound, in
+ * the process of binding (after which, if successful, it will become bound),
+ * bound, or in the process of unbinding (after which it will become unbound).
  *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author Jamie Furness (jamie@onedrum.com)
  * @author OneDrum Ltd.
  */
-public class ProxyAuthenticationException extends Exception {
+public enum BindState {
+	/**
+	 * The channel is currently not bound to any address.
+	 */
+	UNBOUND,
 
-	private static final long serialVersionUID = 997754190727366945L;
+	/**
+	 * The channel is currently in the process of binding to a local address.
+	 */
+	BINDING,
 
-	public ProxyAuthenticationException(String message) {
-		super(message);
-	}
+	/**
+	 * The channel is currently bound to a local address.
+	 */
+	BOUND,
+
+	/**
+	 * The channel is currently in the process of unbinding from a local
+	 * address.
+	 */
+	UNBINDING;
 }

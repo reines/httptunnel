@@ -14,22 +14,39 @@
  * the License.
  */
 
-package org.jboss.netty.channel.socket.http.client;
+package org.jboss.netty.channel.socket.http.state;
 
 /**
- * An exception thrown by the {@link HttpTunnelClientChannel} upon proxy
- * authentication failure.
+ * Represents the connection state change of a channel - either it is not
+ * connected, in the process of connecting (after which, if successful, it will
+ * become connected), connected, or in the process of disconnecting (after which
+ * it will become disconnected).
  *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
  * @author Jamie Furness (jamie@onedrum.com)
  * @author OneDrum Ltd.
  */
-public class ProxyAuthenticationException extends Exception {
+public enum ConnectState {
+	/**
+	 * The channel is currently not connected to a remote endpoint.
+	 */
+	DISCONNECTED,
 
-	private static final long serialVersionUID = 997754190727366945L;
+	/**
+	 * The channel is currently in the process of connecting to a remote
+	 * endpoint.
+	 */
+	CONNECTING,
 
-	public ProxyAuthenticationException(String message) {
-		super(message);
-	}
+	/**
+	 * The channel is currently connected to a remote endpoint.
+	 */
+	CONNECTED,
+
+	/**
+	 * The channel is currently in the process of disconnecting from a remote
+	 * endpoint.
+	 */
+	DISCONNECTING;
 }

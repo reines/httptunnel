@@ -49,7 +49,6 @@ import org.jboss.netty.channel.group.DefaultChannelGroup;
 import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.SocketChannel;
-import org.jboss.netty.channel.socket.http.client.DefaultHttpTunnelClientChannelConfig;
 import org.jboss.netty.channel.socket.http.client.HttpTunnelClientChannelConfig;
 import org.jboss.netty.channel.socket.http.client.HttpTunnelClientChannelFactory;
 import org.jboss.netty.channel.socket.http.server.HttpTunnelServerChannelFactory;
@@ -130,7 +129,7 @@ public class HttpTunnelSoakTester {
 					chosenAddress, proxyPort);
 			if (!proxyAddress.isUnresolved()) {
 				clientBootstrap.setOption(
-						DefaultHttpTunnelClientChannelConfig.PROXY_ADDRESS_OPTION,
+						"proxyAddress",
 						proxyAddress);
 				System.out.println("Using " + proxyAddress
 						+ " as a proxy for this test run");

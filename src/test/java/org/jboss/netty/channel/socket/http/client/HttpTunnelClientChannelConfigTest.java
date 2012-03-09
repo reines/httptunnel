@@ -50,7 +50,7 @@ public class HttpTunnelClientChannelConfigTest {
 		pollChannelConfig = mockContext.mock(SocketChannelConfig.class,
 				"pollChannelConfig");
 
-		config = new DefaultHttpTunnelClientChannelConfig(sendChannelConfig,
+		config = new HttpTunnelClientChannelConfig(sendChannelConfig,
 				pollChannelConfig);
 	}
 

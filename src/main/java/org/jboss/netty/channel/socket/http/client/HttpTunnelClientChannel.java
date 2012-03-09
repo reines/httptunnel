@@ -1,18 +1,19 @@
 /*
- * Copyright 2009 Red Hat, Inc.
+ * Copyright 2011 The Netty Project
  *
- * Red Hat licenses this file to you under the Apache License, version 2.0
- * (the "License"); you may not use this file except in compliance with the
- * License.  You may obtain a copy of the License at:
+ * The Netty Project licenses this file to you under the Apache License, version
+ * 2.0 (the "License"); you may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
- * License for the specific language governing permissions and limitations
- * under the License.
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
  */
+
 package org.jboss.netty.channel.socket.http.client;
 
 import java.net.InetSocketAddress;
@@ -31,13 +32,13 @@ import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.SocketChannel;
-import org.jboss.netty.channel.socket.http.BindState;
-import org.jboss.netty.channel.socket.http.ConnectState;
-import org.jboss.netty.channel.socket.http.IncomingBuffer;
-import org.jboss.netty.channel.socket.http.SaturationManager;
-import org.jboss.netty.channel.socket.http.SaturationStateChange;
+import org.jboss.netty.channel.socket.http.state.BindState;
+import org.jboss.netty.channel.socket.http.state.ConnectState;
+import org.jboss.netty.channel.socket.http.state.SaturationStateChange;
 import org.jboss.netty.channel.socket.http.util.ConsolidatingFutureListener;
 import org.jboss.netty.channel.socket.http.util.HttpTunnelMessageUtils;
+import org.jboss.netty.channel.socket.http.util.IncomingBuffer;
+import org.jboss.netty.channel.socket.http.util.SaturationManager;
 import org.jboss.netty.channel.socket.http.util.WriteFragmenter;
 import org.jboss.netty.handler.codec.http.HttpChunkAggregator;
 import org.jboss.netty.handler.codec.http.HttpRequestEncoder;
@@ -49,11 +50,12 @@ import org.jboss.netty.logging.InternalLoggerFactory;
  * The client end of an HTTP tunnel, created by an
  * {@link HttpTunnelClientChannelFactory}. Channels of this type are designed to
  * emulate a normal TCP based socket channel as far as is feasible within the
- * limitations of the HTTP 1.1 protocol, and the usage patterns permitted by
+ * limitations of the HTTP 1.0 protocol, and the usage patterns permitted by
  * commonly used HTTP proxies and firewalls.
  *
  * @author The Netty Project (netty-dev@lists.jboss.org)
  * @author Iain McGinniss (iain.mcginniss@onedrum.com)
+ * @author Jamie Furness (jamie@onedrum.com)
  * @author OneDrum Ltd.
  */
 public class HttpTunnelClientChannel extends AbstractChannel implements SocketChannel {
@@ -88,7 +90,7 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 	 * @see HttpTunnelClientChannelFactory#newChannel(ChannelPipeline)
 	 */
 	protected HttpTunnelClientChannel(ChannelFactory factory, ChannelPipeline pipeline, HttpTunnelClientChannelSink sink, ClientSocketChannelFactory outboundFactory, ChannelGroup realConnections) {
-		super (null, factory, pipeline, sink);
+		super(null, factory, pipeline, sink);
 
 		this.outboundFactory = outboundFactory;
 
@@ -99,7 +101,7 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		sendChannel = outboundFactory.newChannel(Channels.pipeline());
 		pollChannel = outboundFactory.newChannel(Channels.pipeline());
 
-		config = new DefaultHttpTunnelClientChannelConfig(sendChannel.getConfig(), pollChannel.getConfig());
+		config = new HttpTunnelClientChannelConfig(sendChannel.getConfig(), pollChannel.getConfig());
 		saturationManager = new SaturationManager(config.getWriteBufferLowWaterMark(), config.getWriteBufferHighWaterMark());
 
 		sendHttpHandler = new HttpTunnelClientChannelProxyHandler(config);
@@ -187,8 +189,10 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 			LOG.debug("HTTP Tunnel client channel closing");
 
 		int openChannels = 0;
-		if (sendChannel.isOpen()) openChannels++;
-		if (pollChannel.isOpen()) openChannels++;
+		if (sendChannel.isOpen())
+			openChannels++;
+		if (pollChannel.isOpen())
+			openChannels++;
 
 		// If there are no open channels we don't need to try close them
 		if (openChannels == 0) {
@@ -225,7 +229,8 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 	}
 
 	synchronized ChannelFuture internalBind(InetSocketAddress addr, ChannelFuture future) {
-		// Update the bind state - if we fail then throw an illegal state exception
+		// Update the bind state - if we fail then throw an illegal state
+		// exception
 		if (!bindState.compareAndSet(BindState.UNBOUND, BindState.BINDING)) {
 			final Exception error = new IllegalStateException("Already bound or in the process of binding");
 
@@ -261,7 +266,8 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		};
 
 		// bind the send channel to the specified local address, and the poll
-		// channel to an ephemeral port on the same interface as the send channel
+		// channel to an ephemeral port on the same interface as the send
+		// channel
 		final InetSocketAddress pollAddr;
 		if (addr.isUnresolved())
 			pollAddr = InetSocketAddress.createUnresolved(addr.getHostName(), 0);
@@ -284,8 +290,10 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 			LOG.debug("HTTP Tunnel client channel unbinding");
 
 		int boundChannels = 0;
-		if (sendChannel.isBound()) boundChannels++;
-		if (pollChannel.isBound()) boundChannels++;
+		if (sendChannel.isBound())
+			boundChannels++;
+		if (pollChannel.isBound())
+			boundChannels++;
 
 		// If there are no bound channels we don't need to try unbind them
 		if (boundChannels == 0) {
@@ -321,7 +329,8 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 	}
 
 	void internalConnect(InetSocketAddress addr, ChannelFuture future) {
-		// Update the connection state - if we fail then throw an illegal state exception
+		// Update the connection state - if we fail then throw an illegal state
+		// exception
 		if (!connectState.compareAndSet(ConnectState.DISCONNECTED, ConnectState.CONNECTING))
 			return;
 
@@ -360,10 +369,13 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 			LOG.debug("HTTP Tunnel client channel disconnecting");
 
 		int connectedChannels = 0;
-		if (sendChannel.isConnected()) connectedChannels++;
-		if (pollChannel.isConnected()) connectedChannels++;
+		if (sendChannel.isConnected())
+			connectedChannels++;
+		if (pollChannel.isConnected())
+			connectedChannels++;
 
-		// If there are no connected channels we don't need to try disconnect them
+		// If there are no connected channels we don't need to try disconnect
+		// them
 		if (connectedChannels == 0) {
 			remoteAddress = null;
 
@@ -472,7 +484,9 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		pipeline.addLast("reqencoder", new HttpRequestEncoder()); // downstream
 		pipeline.addLast("respdecoder", new HttpResponseDecoder()); // upstream
 		pipeline.addLast("aggregator", new HttpChunkAggregator(HttpTunnelMessageUtils.MAX_BODY_SIZE)); // upstream
-		pipeline.addLast(HttpTunnelClientChannelProxyHandler.NAME, sendHttpHandler); // proxy auth, etc
+		pipeline.addLast(HttpTunnelClientChannelProxyHandler.NAME, sendHttpHandler); // proxy
+																						// auth,
+																						// etc
 		pipeline.addLast(HttpTunnelClientChannelSendHandler.NAME, sendHandler); // both
 		pipeline.addLast("writeFragmenter", new WriteFragmenter(HttpTunnelMessageUtils.MAX_BODY_SIZE));
 	}
@@ -481,13 +495,14 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		pipeline.addLast("reqencoder", new HttpRequestEncoder()); // downstream
 		pipeline.addLast("respdecoder", new HttpResponseDecoder()); // upstream
 		pipeline.addLast("aggregator", new HttpChunkAggregator(HttpTunnelMessageUtils.MAX_BODY_SIZE)); // upstream
-		pipeline.addLast(HttpTunnelClientChannelProxyHandler.NAME, pollHttpHandler); // proxy auth, etc
+		pipeline.addLast(HttpTunnelClientChannelProxyHandler.NAME, pollHttpHandler); // proxy
+																						// auth,
+																						// etc
 		pipeline.addLast(HttpTunnelClientChannelPollHandler.NAME, pollHandler); // both
 	}
 
 	void updateSaturationStatus(int queueSizeDelta) {
 		final SaturationStateChange transition = saturationManager.queueSizeChanged(queueSizeDelta);
-
 		switch (transition) {
 			case SATURATED: {
 				this.fireWriteEnabled(false);
@@ -496,10 +511,6 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 
 			case DESATURATED: {
 				this.fireWriteEnabled(true);
-				break;
-			}
-
-			case NO_CHANGE: {
 				break;
 			}
 		}
@@ -648,7 +659,8 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 			// If the buffer is over capacity start congestion control
 			if (incomingBuffer.overCapacity()) {
 				// TODO: Send a "stop sending shit" message!
-				// TODO: What about when to send the "start sending shit again" message?
+				// TODO: What about when to send the "start sending shit again"
+				// message?
 			}
 		}
 
