@@ -55,6 +55,12 @@ public class HttpTunnelServerChannel extends AbstractServerChannel implements Se
 
 	private static final InternalLogger LOG = InternalLoggerFactory.getInstance(HttpTunnelServerChannel.class);
 
+	private static final Random random;
+
+	static {
+		random = new Random();
+	}
+
 	private final String tunnelIdPrefix;
 	private final ConcurrentHashMap<String, HttpTunnelAcceptedChannel> tunnels;
 	private final ServerSocketChannel realChannel;
@@ -66,7 +72,7 @@ public class HttpTunnelServerChannel extends AbstractServerChannel implements Se
 	protected HttpTunnelServerChannel(ChannelFactory factory, ChannelPipeline pipeline, ChannelSink sink, ServerSocketChannelFactory inboundFactory, ChannelGroup realConnections) {
 		super(factory, pipeline, sink);
 
-		tunnelIdPrefix = Long.toHexString(new Random().nextLong());
+		tunnelIdPrefix = Long.toHexString(random.nextLong());
 		tunnels = new ConcurrentHashMap<String, HttpTunnelAcceptedChannel>();
 
 		config = new HttpTunnelServerChannelConfig();
