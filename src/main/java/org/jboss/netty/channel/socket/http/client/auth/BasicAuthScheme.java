@@ -18,7 +18,7 @@ package org.jboss.netty.channel.socket.http.client.auth;
 
 import java.util.Map;
 
-import org.apache.commons.codec.binary.Base64;
+import org.jboss.netty.channel.socket.http.util.Base64Coder;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 /**
@@ -48,6 +48,6 @@ public class BasicAuthScheme implements AuthScheme {
 	public String authenticate(HttpRequest request, Map<String, String> challenge, String username, String password) {
 		final String credentials = String.format("%s:%s", username, password);
 
-		return Base64.encodeBase64String(credentials.getBytes()).trim();
+		return new String(Base64Coder.encode(credentials.getBytes())).trim();
 	}
 }
