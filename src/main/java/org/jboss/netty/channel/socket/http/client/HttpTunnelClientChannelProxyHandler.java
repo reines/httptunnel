@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.commons.lang.StringUtils;
 import org.jboss.netty.channel.ChannelHandlerContext;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
@@ -32,6 +31,7 @@ import org.jboss.netty.channel.socket.http.client.auth.BasicAuthScheme;
 import org.jboss.netty.channel.socket.http.client.auth.DigestAuthScheme;
 import org.jboss.netty.channel.socket.http.util.HttpTunnelMessageUtils;
 import org.jboss.netty.channel.socket.http.util.ParameterParser;
+import org.jboss.netty.channel.socket.http.util.StringUtils;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;

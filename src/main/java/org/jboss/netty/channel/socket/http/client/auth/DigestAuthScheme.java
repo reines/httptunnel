@@ -18,15 +18,14 @@ package org.jboss.netty.channel.socket.http.client.auth;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Formatter;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.StringUtils;
 import org.jboss.netty.channel.socket.http.client.ProxyAuthenticationException;
+import org.jboss.netty.channel.socket.http.util.StringUtils;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 
 /**
@@ -49,21 +48,12 @@ public class DigestAuthScheme implements AuthScheme {
 		random = new Random();
 	}
 
-	private static String bytesToHex(byte[] bytes) {
-		final Formatter formatter = new Formatter();
-
-		for (byte b : bytes)
-			formatter.format("%02x", b);
-
-		return formatter.toString();
-	}
-
 	private static String generateNonce() {
 		final byte[] bytes = new byte[8];
 
 		random.nextBytes(bytes);
 
-		return bytesToHex(bytes);
+		return StringUtils.bytesToHex(bytes);
 	}
 
 	private static String[] parseAlgorithms(String algorithms) {
@@ -77,21 +67,21 @@ public class DigestAuthScheme implements AuthScheme {
 		final MessageDigest digest = MessageDigest.getInstance("MD5");
 
 		digest.update(String.format("%s:%s:%s", username, realm, password).getBytes());
-		return bytesToHex(digest.digest());
+		return StringUtils.bytesToHex(digest.digest());
 	}
 
 	private static String generateHA2(String method, String uri) throws NoSuchAlgorithmException {
 		final MessageDigest digest = MessageDigest.getInstance("MD5");
 
 		digest.update(String.format("%s:%s", method, uri).getBytes());
-		return bytesToHex(digest.digest());
+		return StringUtils.bytesToHex(digest.digest());
 	}
 
 	private static String generateResult(String HA1, String nonce, String nc, String cnonce, String qop, String HA2) throws NoSuchAlgorithmException {
 		final MessageDigest digest = MessageDigest.getInstance("MD5");
 
 		digest.update(String.format("%s:%s:%s:%s:%s:%s", HA1, nonce, nc, cnonce, qop, HA2).getBytes());
-		return bytesToHex(digest.digest());
+		return StringUtils.bytesToHex(digest.digest());
 	}
 
 	private String cnonce;
@@ -117,7 +107,7 @@ public class DigestAuthScheme implements AuthScheme {
 
 		// Check algorithms contains MD5, it's all we support
 		final String[] supportedAlgorithms = DigestAuthScheme.parseAlgorithms(challenge.get("algorithm"));
-		if (!ArrayUtils.contains(supportedAlgorithms, "MD5"))
+		if (!StringUtils.inStringArray(supportedAlgorithms, "MD5"))
 			throw new ProxyAuthenticationException("No supported algorithm found");
 
 		final List<String> response = new LinkedList<String>();
@@ -129,7 +119,7 @@ public class DigestAuthScheme implements AuthScheme {
 
 		// Check qop contains auth, it's all we support
 		final String[] qopOptions = challenge.get("qop").split(",");
-		if (!ArrayUtils.contains(qopOptions, "auth"))
+		if (!StringUtils.inStringArray(qopOptions, "auth"))
 			throw new ProxyAuthenticationException("No supported QOP found");
 
 		counter++;
@@ -154,6 +144,14 @@ public class DigestAuthScheme implements AuthScheme {
 			throw new ProxyAuthenticationException(e.getMessage());
 		}
 
-		return StringUtils.join(response.iterator(), ", ");
+		final StringBuilder builder = new StringBuilder();
+
+		final Iterator<String> iterator = response.iterator();
+		while (iterator.hasNext()) {
+			builder.append(iterator.next());
+			builder.append(", ");
+		}
+
+		return builder.substring(0, builder.length() - 2);
 	}
 }

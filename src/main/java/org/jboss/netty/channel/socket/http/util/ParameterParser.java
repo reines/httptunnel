@@ -30,8 +30,6 @@ package org.jboss.netty.channel.socket.http.util;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.commons.lang.ArrayUtils;
-
 /**
  * A simple parser intended to parse sequences of name/value pairs.
  * Parameter values are exptected to be enclosed in quotes if they
@@ -97,7 +95,7 @@ public class ParameterParser {
 
 		while (pos < chars.length) {
 			char ch = chars[pos];
-			if (ArrayUtils.contains(terminators, ch))
+			if (StringUtils.inCharArray(terminators, ch))
 				break;
 
 			end++;
@@ -120,7 +118,7 @@ public class ParameterParser {
 
 		while (pos < chars.length) {
 			char ch = chars[pos];
-			if (!quoted && ArrayUtils.contains(terminators, ch))
+			if (!quoted && StringUtils.inCharArray(terminators, ch))
 				break;
 
 			if (!charEscaped && ch == '"')

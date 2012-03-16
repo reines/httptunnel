@@ -26,11 +26,6 @@
   		<artifactId>netty</artifactId>
   		<version>3.2.7.Final</version>
   	</dependency>
-     <dependency>
-    	<groupId>commons-lang</groupId>
-    	<artifactId>commons-lang</artifactId>
-    	<version>2.1</version>
-    </dependency>
 
     <!-- Testing frameworks and related dependencies -->
     <dependency>
