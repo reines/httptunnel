@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -147,7 +148,9 @@ public class HttpTunnelClientChannelTest {
 		NettyTestUtils.checkIsStateEvent(sendSink.events.poll(), ChannelState.BOUND, LOCAL_ADDRESS);
 
 		final ChannelEvent sendConnectedEvent = sendSink.events.poll();
-		NettyTestUtils.checkIsStateEvent(sendConnectedEvent, ChannelState.CONNECTED, REMOTE_ADDRESS);
+
+		final SocketAddress proxyAddress = channel.getConfig().getProxyAddress();
+		NettyTestUtils.checkIsStateEvent(sendConnectedEvent, ChannelState.CONNECTED, proxyAddress == null ? REMOTE_ADDRESS : proxyAddress);
 
 		// once the send channel indicates that it is connected, we should see
 		// the tunnel open request being sent
