@@ -142,7 +142,7 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 
 			// Generate a proxy authentication header - throws an exception if
 			// no supported auth method or credentials
-			if (proxyAuthHandler.getAndSet(ProxyAuthHandler.init(response.getHeaders(HttpHeaders.Names.PROXY_AUTHENTICATE))) != null)
+			if (!proxyAuthHandler.compareAndSet(null, ProxyAuthHandler.init(response.getHeaders(HttpHeaders.Names.PROXY_AUTHENTICATE))))
 				throw new ProxyAuthenticationException("Received HTTP 407 response even though we already provided credentials");
 
 			if (LOG.isDebugEnabled())
@@ -164,21 +164,10 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 			request.setHeader(HttpHeaders.Names.PROXY_AUTHORIZATION, proxyAuthHeader);
 		}
 
-		request.setHeader(HttpHeaders.Names.CONNECTION, "Keep-Alive"); // request
-																		// the
-																		// connection
-																		// be
-																		// kept
-																		// open
-																		// for
-																		// pipeling
-		request.setHeader(HttpHeaders.Names.PRAGMA, "No-Cache"); // request any
-																	// proxy
-																	// doesn't
-																	// try give
-																	// us a
-																	// cached
-																	// response
+		// request the connection be kept open for pipeling
+		request.setHeader(HttpHeaders.Names.CONNECTION, "Keep-Alive");
+		// request any proxy doesn't try give us a cached response
+		request.setHeader(HttpHeaders.Names.PRAGMA, "No-Cache");
 
 		ctx.sendDownstream(e);
 	}
