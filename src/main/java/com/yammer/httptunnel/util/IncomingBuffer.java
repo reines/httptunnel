@@ -96,6 +96,10 @@ public class IncomingBuffer<T> implements Runnable {
 		this.bounds = bounds;
 	}
 
+	public int size() {
+		return buffer.size();
+	}
+
 	public synchronized boolean offer(T item) {
 		if (buffer.size() >= bounds)
 			return false;

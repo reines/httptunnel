@@ -18,6 +18,7 @@ package com.yammer.httptunnel.client;
 
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
+import java.util.concurrent.TimeUnit;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -26,12 +27,16 @@ import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.channel.WriteCompletionEvent;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.logging.InternalLogger;
 import org.jboss.netty.logging.InternalLoggerFactory;
 
 import com.yammer.httptunnel.util.HttpTunnelMessageUtils;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.Meter;
 
 /**
  * Pipeline component which controls the client poll loop to the server.
@@ -46,6 +51,10 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 	public static final String NAME = "server2client";
 
 	private static final InternalLogger LOG = InternalLoggerFactory.getInstance(HttpTunnelClientChannelPollHandler.class);
+
+	private final Meter connectionMeter = Metrics.newMeter(HttpTunnelClientChannelPollHandler.class, "channelOpen", "channelOpen", TimeUnit.SECONDS);
+	private final Meter pollMeter = Metrics.newMeter(HttpTunnelClientChannelPollHandler.class, "pollMeter", "pollMeter", TimeUnit.SECONDS);
+	private final Histogram requestSizes = Metrics.newHistogram(HttpTunnelClientChannelPollHandler.class, "requestSize");
 
 	private final HttpTunnelClientWorkerOwner tunnelChannel;
 
@@ -69,6 +78,7 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 			if (LOG.isDebugEnabled())
 				LOG.debug("Poll channel for tunnel " + tunnelId + " established");
 
+			connectionMeter.mark();
 			tunnelChannel.fullyEstablished();
 		}
 
@@ -126,12 +136,8 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 		final Throwable error = e.getCause();
 
 		if (error instanceof IOException // Connection reset etc
-			|| error instanceof ClosedChannelException || error instanceof IllegalArgumentException) { // Invalid
-																										// protocol
-																										// format
-																										// -
-																										// bots
-																										// etc
+			|| error instanceof ClosedChannelException
+			|| error instanceof IllegalArgumentException) {  // Invalid protocol format - bots etc
 			if (LOG.isDebugEnabled())
 				LOG.debug("Exception from HttpTunnel send handler: " + error);
 
@@ -142,6 +148,13 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 			LOG.warn("Exception from HttpTunnel poll handler: " + error);
 	}
 
+	@Override
+	public void writeComplete(ChannelHandlerContext ctx, WriteCompletionEvent e) throws Exception {
+		requestSizes.update(e.getWrittenAmount());
+
+		super.writeComplete(ctx, e);
+	}
+
 	private void sendPoll(Channel channel) {
 		if (!channel.isOpen())
 			return;
@@ -149,6 +162,8 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 		pollTime = System.nanoTime();
 		if (LOG.isDebugEnabled())
 			LOG.debug("sending poll request for tunnel " + tunnelId);
+
+		pollMeter.mark();
 
 		final HttpRequest request = HttpTunnelMessageUtils.createReceiveDataRequest(tunnelChannel.getServerHostName(), tunnelId, tunnelChannel.getUserAgent());
 		channel.write(request);

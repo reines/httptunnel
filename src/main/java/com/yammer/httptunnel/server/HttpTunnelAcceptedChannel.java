@@ -50,6 +50,8 @@ import com.yammer.httptunnel.util.IncomingBuffer;
 import com.yammer.httptunnel.util.QueuedResponse;
 import com.yammer.httptunnel.util.SaturationManager;
 import com.yammer.httptunnel.util.WriteFragmenter;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
 
 /**
  * Represents the server end of an HTTP tunnel, created after a legal tunnel
@@ -103,6 +105,14 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 		queuedResponses = new ConcurrentLinkedQueue<QueuedResponse>();
 
 		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this);
+
+		Metrics.newGauge(HttpTunnelAcceptedChannel.class, "incomingBuffer", new Gauge<Integer>() {
+		    @Override
+		    public Integer value() {
+		        return incomingBuffer.size();
+		    }
+		});
+
 		pingExecutor = Executors.newSingleThreadScheduledExecutor();
 		pingResponder = new PingResponder();
 		pingTimeout = new PingTimeout();

@@ -46,6 +46,8 @@ import com.yammer.httptunnel.util.HttpTunnelMessageUtils;
 import com.yammer.httptunnel.util.IncomingBuffer;
 import com.yammer.httptunnel.util.SaturationManager;
 import com.yammer.httptunnel.util.WriteFragmenter;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
 
 /**
  * The client end of an HTTP tunnel, created by an
@@ -98,6 +100,13 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		final WorkerCallbacks callbackProxy = new WorkerCallbacks();
 
 		incomingBuffer = new IncomingBuffer<ChannelBuffer>(this);
+
+		Metrics.newGauge(HttpTunnelClientChannel.class, "incomingBuffer", new Gauge<Integer>() {
+		    @Override
+		    public Integer value() {
+		        return incomingBuffer.size();
+		    }
+		});
 
 		sendChannel = outboundFactory.newChannel(Channels.pipeline());
 		pollChannel = outboundFactory.newChannel(Channels.pipeline());

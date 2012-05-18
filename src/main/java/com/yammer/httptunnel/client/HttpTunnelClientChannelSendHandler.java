@@ -19,6 +19,7 @@ package com.yammer.httptunnel.client;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -32,12 +33,19 @@ import org.jboss.netty.channel.DownstreamMessageEvent;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.channel.WriteCompletionEvent;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.logging.InternalLogger;
 import org.jboss.netty.logging.InternalLoggerFactory;
 
 import com.yammer.httptunnel.util.HttpTunnelMessageUtils;
+import com.yammer.httptunnel.util.TimedMessageEventWrapper;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.Timer;
 
 /**
  * Pipeline component which deals with sending data from the client to server.
@@ -53,9 +61,13 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 
 	private static final InternalLogger LOG = InternalLoggerFactory.getInstance(HttpTunnelClientChannelSendHandler.class);
 
+	private final Meter connectionMeter = Metrics.newMeter(HttpTunnelClientChannelSendHandler.class, "channelOpen", "channelOpen", TimeUnit.SECONDS);
+	private final Timer requestTimer = Metrics.newTimer(HttpTunnelClientChannelSendHandler.class, "requests", TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+	private final Histogram requestSizes = Metrics.newHistogram(HttpTunnelClientChannelPollHandler.class, "requestSize");
+
 	private final HttpTunnelClientWorkerOwner tunnelChannel;
 	private final AtomicBoolean disconnecting;
-	private final ConcurrentLinkedQueue<MessageEvent> queuedWrites;
+	private final ConcurrentLinkedQueue<TimedMessageEventWrapper> queuedWrites;
 	private final AtomicInteger pendingRequestCount;
 
 	private String tunnelId;
@@ -66,8 +78,15 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 		this.tunnelChannel = tunnelChannel;
 
 		disconnecting = new AtomicBoolean(false);
-		queuedWrites = new ConcurrentLinkedQueue<MessageEvent>();
+		queuedWrites = new ConcurrentLinkedQueue<TimedMessageEventWrapper>();
 		pendingRequestCount = new AtomicInteger(0);
+
+		Metrics.newGauge(HttpTunnelClientChannelSendHandler.class, "queuedWrites", new Gauge<Integer>() {
+		    @Override
+		    public Integer value() {
+		        return queuedWrites.size();
+		    }
+		});
 
 		tunnelId = null;
 		postShutdownEvent = null;
@@ -89,7 +108,7 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 			final Channel channel = ctx.getChannel();
 			final DownstreamMessageEvent event = new DownstreamMessageEvent(channel, Channels.future(channel), request, channel.getRemoteAddress());
 
-			queuedWrites.offer(event);
+			queuedWrites.offer(new TimedMessageEventWrapper(event, requestTimer.time()));
 			pendingRequestCount.incrementAndGet();
 		}
 
@@ -131,6 +150,7 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 			if (LOG.isDebugEnabled())
 				LOG.debug("tunnel open request accepted - id " + tunnelId);
 
+			connectionMeter.mark();
 			tunnelChannel.onTunnelOpened(tunnelId);
 
 			this.sendNextAfterResponse(ctx);
@@ -195,9 +215,14 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 			if (LOG.isDebugEnabled())
 				LOG.debug("sending next request for tunnel " + tunnelId);
 
-			final MessageEvent nextWrite = queuedWrites.poll();
-			sendRequestTime = System.nanoTime();
-			ctx.sendDownstream(nextWrite);
+			final TimedMessageEventWrapper wrapper = queuedWrites.poll();
+			try {
+				sendRequestTime = System.nanoTime();
+				ctx.sendDownstream(wrapper.getEvent());
+			}
+			finally {
+				wrapper.getContext().stop();
+			}
 		}
 	}
 
@@ -224,13 +249,20 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 		final Channel channel = ctx.getChannel();
 		final DownstreamMessageEvent translatedEvent = new DownstreamMessageEvent(channel, future, request, channel.getRemoteAddress());
 
-		queuedWrites.offer(translatedEvent);
+		queuedWrites.offer(new TimedMessageEventWrapper(translatedEvent, requestTimer.time()));
 		if (pendingRequestCount.incrementAndGet() == 1)
 			this.sendQueuedData(ctx);
 		else {
 			if (LOG.isDebugEnabled())
 				LOG.debug("write request for tunnel " + tunnelId + " queued");
 		}
+	}
+
+	@Override
+	public void writeComplete(ChannelHandlerContext ctx, WriteCompletionEvent e) throws Exception {
+		requestSizes.update(e.getWrittenAmount());
+
+		super.writeComplete(ctx, e);
 	}
 
 	@Override
