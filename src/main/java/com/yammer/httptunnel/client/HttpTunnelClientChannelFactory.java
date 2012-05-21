@@ -47,7 +47,6 @@ public class HttpTunnelClientChannelFactory implements ClientSocketChannelFactor
 
 	@Override
 	public void releaseExternalResources() {
-		realConnections.close().awaitUninterruptibly();
 		factory.releaseExternalResources();
 	}
 }
