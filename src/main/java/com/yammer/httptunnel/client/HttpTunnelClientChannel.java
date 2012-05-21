@@ -29,6 +29,7 @@ import org.jboss.netty.channel.ChannelFutureListener;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.Channels;
 import org.jboss.netty.channel.MessageEvent;
+import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.SocketChannel;
@@ -108,8 +109,8 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		    }
 		});
 
-		sendChannel = outboundFactory.newChannel(Channels.pipeline());
-		pollChannel = outboundFactory.newChannel(Channels.pipeline());
+		sendChannel = outboundFactory.newChannel(Channels.pipeline(new SimpleChannelHandler()));
+		pollChannel = outboundFactory.newChannel(Channels.pipeline(new SimpleChannelHandler()));
 
 		config = new HttpTunnelClientChannelConfig(sendChannel.getConfig(), pollChannel.getConfig());
 		saturationManager = new SaturationManager(config.getWriteBufferLowWaterMark(), config.getWriteBufferHighWaterMark());
@@ -494,9 +495,7 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		pipeline.addLast("reqencoder", new HttpRequestEncoder()); // downstream
 		pipeline.addLast("respdecoder", new HttpResponseDecoder()); // upstream
 		pipeline.addLast("aggregator", new HttpChunkAggregator(HttpTunnelMessageUtils.MAX_BODY_SIZE)); // upstream
-		pipeline.addLast(HttpTunnelClientChannelProxyHandler.NAME, sendHttpHandler); // proxy
-																						// auth,
-																						// etc
+		pipeline.addLast(HttpTunnelClientChannelProxyHandler.NAME, sendHttpHandler); // proxy auth, etc
 		pipeline.addLast(HttpTunnelClientChannelSendHandler.NAME, sendHandler); // both
 		pipeline.addLast("writeFragmenter", new WriteFragmenter(HttpTunnelMessageUtils.MAX_BODY_SIZE));
 	}
@@ -505,9 +504,7 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		pipeline.addLast("reqencoder", new HttpRequestEncoder()); // downstream
 		pipeline.addLast("respdecoder", new HttpResponseDecoder()); // upstream
 		pipeline.addLast("aggregator", new HttpChunkAggregator(HttpTunnelMessageUtils.MAX_BODY_SIZE)); // upstream
-		pipeline.addLast(HttpTunnelClientChannelProxyHandler.NAME, pollHttpHandler); // proxy
-																						// auth,
-																						// etc
+		pipeline.addLast(HttpTunnelClientChannelProxyHandler.NAME, pollHttpHandler); // proxy auth, etc
 		pipeline.addLast(HttpTunnelClientChannelPollHandler.NAME, pollHandler); // both
 	}
 

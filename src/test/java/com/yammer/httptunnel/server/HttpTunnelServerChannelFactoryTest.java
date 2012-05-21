@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 import org.jboss.netty.channel.ChannelException;
 import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.SimpleChannelHandler;
 import org.jboss.netty.channel.socket.ServerSocketChannel;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jmock.Expectations;
@@ -34,8 +35,6 @@ import org.junit.runner.RunWith;
 
 import com.yammer.httptunnel.FakeChannelSink;
 import com.yammer.httptunnel.FakeServerSocketChannel;
-import com.yammer.httptunnel.server.HttpTunnelServerChannel;
-import com.yammer.httptunnel.server.HttpTunnelServerChannelFactory;
 
 /**
  * @author The Netty Project (netty-dev@lists.jboss.org)
@@ -56,7 +55,7 @@ public class HttpTunnelServerChannelFactoryTest {
 	public void setUp() throws Exception {
 		realChannelFactory = mockContext.mock(ServerSocketChannelFactory.class);
 		factory = new HttpTunnelServerChannelFactory(realChannelFactory);
-		ChannelPipeline pipeline = Channels.pipeline();
+		ChannelPipeline pipeline = Channels.pipeline(new SimpleChannelHandler());
 		realChannel = new FakeServerSocketChannel(factory, pipeline,
 				new FakeChannelSink());
 	}
@@ -70,7 +69,7 @@ public class HttpTunnelServerChannelFactoryTest {
 				will(returnValue(realChannel));
 			}
 		});
-		ChannelPipeline pipeline = Channels.pipeline();
+		ChannelPipeline pipeline = Channels.pipeline(new SimpleChannelHandler());
 		HttpTunnelServerChannel newChannel = factory.newChannel(pipeline);
 		assertNotNull(newChannel);
 		assertSame(pipeline, newChannel.getPipeline());
@@ -88,7 +87,7 @@ public class HttpTunnelServerChannelFactoryTest {
 		});
 
 		try {
-			factory.newChannel(Channels.pipeline());
+			factory.newChannel(Channels.pipeline(new SimpleChannelHandler()));
 			fail("Expected ChannelException");
 		} catch (ChannelException e) {
 			assertSame(innerException, e);
