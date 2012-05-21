@@ -3,7 +3,7 @@
 
     <groupId>com.yammer</groupId>
     <artifactId>httptunnel</artifactId>
-    <version>0.26</version>
+    <version>0.27-SNAPSHOT</version>
     <packaging>bundle</packaging>
 
     <scm>
