@@ -18,8 +18,6 @@ package com.yammer.httptunnel.util;
 
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.Channels;
@@ -49,7 +47,6 @@ public class IncomingBuffer<T> implements Runnable {
 	public static final int DEFAULT_BOUNDS = Integer.MAX_VALUE;
 
 	private final Channel channel;
-	private final ExecutorService workerExecutor;
 	private final Queue<T> buffer;
 
 	private int capacity;
@@ -68,7 +65,6 @@ public class IncomingBuffer<T> implements Runnable {
 		this.capacity = capacity;
 		this.bounds = bounds;
 
-		workerExecutor = Executors.newSingleThreadExecutor();
 		buffer = new LinkedList<T>();
 
 		new Thread(this).start();
@@ -132,12 +128,7 @@ public class IncomingBuffer<T> implements Runnable {
 			}
 
 			final T item = buffer.poll();
-			workerExecutor.execute(new Runnable() {
-				@Override
-				public void run() {
-					Channels.fireMessageReceived(channel, item);
-				}
-			});
+			Channels.fireMessageReceived(channel, item);
 		}
 	}
 }
