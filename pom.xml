@@ -4,7 +4,6 @@
     <groupId>com.yammer</groupId>
     <artifactId>httptunnel</artifactId>
     <version>0.29-SNAPSHOT</version>
-    <packaging>bundle</packaging>
 
     <scm>
         <connection>scm:git:git@github.com:yammer/httptunnel.git</connection>
@@ -107,16 +106,6 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <extensions>true</extensions>
-                <configuration>
-                    <instructions>
-                        <Import-Package>!org.jboss.netty.util.internal,*</Import-Package>
-                    </instructions>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
@@ -143,14 +132,6 @@
                         <link>http://netty.io/docs/stable/api/</link>
                     </links>
                 </configuration>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
         <extensions>
