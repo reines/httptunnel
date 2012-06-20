@@ -85,8 +85,9 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 	private final ScheduledExecutorService pingExecutor;
 	private final Runnable pingResponder;
 	private final Runnable pingTimeout;
+	private final Object pingLock;
 	private ScheduledFuture<?> pingTimeoutFuture;
-
+	
 	protected HttpTunnelAcceptedChannel(HttpTunnelServerChannel parent, ChannelFactory factory, ChannelPipeline pipeline, ChannelSink sink, InetSocketAddress remoteAddress, String tunnelId) {
 		super(parent, factory, pipeline, sink);
 
@@ -116,6 +117,7 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 		pingExecutor = Executors.newSingleThreadScheduledExecutor();
 		pingResponder = new PingResponder();
 		pingTimeout = new PingTimeout();
+		pingLock = new Object();
 		pingTimeoutFuture = null;
 	}
 
@@ -182,8 +184,9 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 	}
 
 	synchronized ChannelFuture internalSetInterestOps(int ops, ChannelFuture future) {
-		if (getInterestOps() != ops)
-			setAndNotifyInterestedOpsChange(ops);
+		if (this.getInterestOps() != ops)
+			this.setAndNotifyInterestedOpsChange(ops);
+		
 		future.setSuccess();
 		return future;
 	}
@@ -196,7 +199,7 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 		incomingBuffer.onInterestOpsChanged();
 	}
 
-	synchronized void internalReceiveMessage(ChannelBuffer message) {
+	void internalReceiveMessage(ChannelBuffer message) {
 		if (!opened.get()) {
 			if (LOG.isWarnEnabled())
 				LOG.warn("Received message while channel is closed");
@@ -329,13 +332,15 @@ public class HttpTunnelAcceptedChannel extends AbstractChannel implements Socket
 		this.internalSetInterestOps(ops, Channels.future(this));
 	}
 
-	synchronized void ping() {
-		// Cancel the existing timeout
-		if (pingTimeoutFuture != null)
-			pingTimeoutFuture.cancel(false);
-
-		// Schedule the next timeout for 2 * ping delay seconds
-		pingTimeoutFuture = pingExecutor.schedule(pingTimeout, config.getPingDelay() * 2, TimeUnit.SECONDS);
+	void ping() {
+		synchronized (pingLock) {
+			// Cancel the existing timeout
+			if (pingTimeoutFuture != null)
+				pingTimeoutFuture.cancel(false);
+	
+			// Schedule the next timeout for 2 * ping delay seconds
+			pingTimeoutFuture = pingExecutor.schedule(pingTimeout, config.getPingDelay() * 2, TimeUnit.SECONDS);
+		}
 	}
 
 	private class PingResponder implements Runnable {

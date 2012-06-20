@@ -106,7 +106,7 @@ public class IncomingBuffer<T> implements Runnable {
 		return true;
 	}
 
-	public synchronized boolean overCapacity() {
+	public boolean overCapacity() {
 		return buffer.size() > capacity;
 	}
 
@@ -115,20 +115,21 @@ public class IncomingBuffer<T> implements Runnable {
 	}
 
 	@Override
-	public synchronized void run() {
+	public void run() {
 		while (true) {
-			// Block while we have no messages, or we aren't meant to be reading
-			// them
-			while (buffer.isEmpty() || !channel.isReadable()) {
-				try {
-					this.wait();
+			synchronized (this) {
+				// Block while we have no messages, or we aren't meant to be reading
+				// them
+				while (buffer.isEmpty() || !channel.isReadable()) {
+					try {
+						this.wait();
+					}
+					catch (InterruptedException e) { }
 				}
-				catch (InterruptedException e) {
-				}
+	
+				final T item = buffer.poll();
+				Channels.fireMessageReceived(channel, item);
 			}
-
-			final T item = buffer.poll();
-			Channels.fireMessageReceived(channel, item);
 		}
 	}
 }
