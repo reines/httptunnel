@@ -16,8 +16,8 @@
 
 package com.yammer.httptunnel.client;
 
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
+import java.net.*;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -115,10 +115,10 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		config = new HttpTunnelClientChannelConfig(sendChannel.getConfig(), pollChannel.getConfig());
 		saturationManager = new SaturationManager(config.getWriteBufferLowWaterMark(), config.getWriteBufferHighWaterMark());
 
-		sendHttpHandler = new HttpTunnelClientChannelProxyHandler(config);
+		sendHttpHandler = new HttpTunnelClientChannelProxyHandler();
 		sendHandler = new HttpTunnelClientChannelSendHandler(callbackProxy);
 
-		pollHttpHandler = new HttpTunnelClientChannelProxyHandler(config);
+		pollHttpHandler = new HttpTunnelClientChannelProxyHandler();
 		pollHandler = new HttpTunnelClientChannelPollHandler(callbackProxy);
 
 		opened = new AtomicBoolean(true);
@@ -361,11 +361,18 @@ public class HttpTunnelClientChannel extends AbstractChannel implements SocketCh
 		if (bindState.compareAndSet(BindState.UNBOUND, BindState.BINDING))
 			this.internalDoBind(new InetSocketAddress(0), Channels.future(this));
 
-		final SocketAddress connectAddr;
-		if (config.getProxyAddress() != null)
-			connectAddr = config.getProxyAddress();
-		else
-			connectAddr = remoteAddress;
+        SocketAddress connectAddr = remoteAddress;
+        try {
+            final List<Proxy> proxies = ProxySelector.getDefault().select(new URI(String.format("http://%s:%d", addr.getHostString(), addr.getPort())));
+            final Proxy proxy = proxies.get(0);
+
+            if (proxy.type() == Proxy.Type.HTTP)
+                connectAddr = proxy.address();
+        }
+        catch (URISyntaxException e) {
+            if (LOG.isWarnEnabled())
+                LOG.warn("Unable to parse proxy address", e);
+        }
 
 		Channels.connect(sendChannel, connectAddr);
 	}

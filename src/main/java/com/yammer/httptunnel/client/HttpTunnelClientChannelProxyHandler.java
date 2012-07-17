@@ -16,6 +16,10 @@
 
 package com.yammer.httptunnel.client;
 
+import java.net.Authenticator;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -102,6 +106,10 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 		public String authenticate(HttpRequest request, String username, String password) throws Exception {
 			return String.format("%s %s", StringUtils.capitalize(scheme.getName()), scheme.authenticate(request, challenge, username, password));
 		}
+
+        public AuthScheme getScheme() {
+            return scheme;
+        }
 	}
 
 	private static final List<AuthScheme> proxyAuthSchemes = new LinkedList<AuthScheme>();
@@ -113,13 +121,9 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 		proxyAuthSchemes.add(new BasicAuthScheme());
 	}
 
-	private final HttpTunnelClientChannelConfig config;
-
 	private AtomicReference<ProxyAuthHandler> proxyAuthHandler;
 
-	public HttpTunnelClientChannelProxyHandler(HttpTunnelClientChannelConfig config) {
-		this.config = config;
-
+	public HttpTunnelClientChannelProxyHandler() {
 		proxyAuthHandler = new AtomicReference<ProxyAuthHandler>();
 	}
 
@@ -147,7 +151,7 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 				throw new ProxyAuthenticationException("Received HTTP 407 response even though we already provided credentials");
 
 			if (LOG.isDebugEnabled())
-				LOG.debug("resending request with proxy credentials (user: " + config.getProxyUsername() + ")");
+				LOG.debug("resending request with proxy credentials");
 
 			return;
 		}
@@ -160,9 +164,15 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 		final HttpRequest request = (HttpRequest) e.getMessage();
 
 		// If we have a proxy auth header, add it into the request
-		if (proxyAuthHandler.get() != null) {
-			final String proxyAuthHeader = proxyAuthHandler.get().authenticate(request, config.getProxyUsername(), config.getProxyPassword());
-			request.setHeader(HttpHeaders.Names.PROXY_AUTHORIZATION, proxyAuthHeader);
+        final ProxyAuthHandler handler = proxyAuthHandler.get();
+		if (handler != null) {
+            final InetSocketAddress remoteAddress = (InetSocketAddress) e.getRemoteAddress();
+
+            final PasswordAuthentication auth = Authenticator.requestPasswordAuthentication(remoteAddress.getAddress(), remoteAddress.getPort(), "http", "Credentials required for HTTP proxy", handler.getScheme().toString());
+            if (auth != null) {
+			    final String proxyAuthHeader = handler.authenticate(request, auth.getUserName(), new String(auth.getPassword()));
+			    request.setHeader(HttpHeaders.Names.PROXY_AUTHORIZATION, proxyAuthHeader);
+            }
 		}
 
 		// request the connection be kept open for pipeling

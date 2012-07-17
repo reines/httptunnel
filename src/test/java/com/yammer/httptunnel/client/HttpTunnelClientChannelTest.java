@@ -21,10 +21,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.net.UnknownHostException;
+import java.net.*;
 
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.ChannelEvent;
@@ -139,7 +136,7 @@ public class HttpTunnelClientChannelTest {
 	}
 
 	@Test
-	public void testConnect() throws InterruptedException {
+	public void testConnect() throws InterruptedException, URISyntaxException {
 		Channels.bind(channel, LOCAL_ADDRESS);
 		Channels.connect(channel, REMOTE_ADDRESS);
 
@@ -152,7 +149,9 @@ public class HttpTunnelClientChannelTest {
 
 		final ChannelEvent sendConnectedEvent = sendSink.events.poll();
 
-		final SocketAddress proxyAddress = channel.getConfig().getProxyAddress();
+        final Proxy proxy = ProxySelector.getDefault().select(new URI(String.format("http://%s:%d", REMOTE_ADDRESS.getHostString(), REMOTE_ADDRESS.getPort()))).get(0);
+		final SocketAddress proxyAddress = proxy.address();
+
 		NettyTestUtils.checkIsStateEvent(sendConnectedEvent, ChannelState.CONNECTED, proxyAddress == null ? REMOTE_ADDRESS : proxyAddress);
 
 		// once the send channel indicates that it is connected, we should see

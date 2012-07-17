@@ -16,16 +16,10 @@
 
 package com.yammer.httptunnel.client;
 
-import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
-import java.net.SocketAddress;
-import java.net.URL;
-
+import com.yammer.httptunnel.HttpTunnelChannelConfig;
 import org.jboss.netty.channel.socket.SocketChannelConfig;
 import org.jboss.netty.logging.InternalLogger;
 import org.jboss.netty.logging.InternalLoggerFactory;
-
-import com.yammer.httptunnel.HttpTunnelChannelConfig;
 
 /**
  * Configuration for the client end of an HTTP tunnel. Any socket channel
@@ -42,62 +36,21 @@ public class HttpTunnelClientChannelConfig extends HttpTunnelChannelConfig {
 	public static final String DEFAULT_USER_AGENT = "HttpTunnel";
 
 	static final String USER_AGENT_OPTION = "userAgent";
-	static final String PROXY_ADDRESS_OPTION = "proxyAddress";
-	static final String PROXY_USERNAME_OPTION = "proxyUsername";
-	static final String PROXY_PASSWORD_OPTION = "proxyPassword";
 
 	private static final String PROP_PKG = "org.jboss.netty.channel.socket.http.";
 
 	private static final String PROP_UserAgent = PROP_PKG + USER_AGENT_OPTION;
-	private static final String PROP_ProxyAddress = PROP_PKG + PROXY_ADDRESS_OPTION;
-	private static final String PROP_ProxyUsername = PROP_PKG + PROXY_USERNAME_OPTION;
-	private static final String PROP_ProxyPassword = PROP_PKG + PROXY_PASSWORD_OPTION;
 
 	private final SocketChannelConfig sendChannelConfig;
 	private final SocketChannelConfig pollChannelConfig;
 
 	private String userAgent;
-	private SocketAddress proxyAddress;
-	private String proxyUsername;
-	private String proxyPassword;
 
 	HttpTunnelClientChannelConfig(SocketChannelConfig sendChannelConfig, SocketChannelConfig pollChannelConfig) {
 		this.sendChannelConfig = sendChannelConfig;
 		this.pollChannelConfig = pollChannelConfig;
 
 		userAgent = System.getProperty(PROP_UserAgent, DEFAULT_USER_AGENT);
-
-		this.setProxyAddress(System.getProperty(PROP_ProxyAddress));
-		proxyUsername = System.getProperty(PROP_ProxyUsername);
-		proxyPassword = System.getProperty(PROP_ProxyPassword);
-	}
-
-	private void setProxyAddress(String proxyAddress) {
-		if (proxyAddress == null) {
-			this.proxyAddress = null;
-			return;
-		}
-
-		try {
-			final URL proxyAddressUrl = new URL(proxyAddress);
-			this.proxyAddress = new InetSocketAddress(proxyAddressUrl.getHost(), proxyAddressUrl.getPort());
-		}
-		catch (MalformedURLException e) {
-			LOG.warn("Failed to configure http proxy", e);
-		}
-	}
-
-	public void setProxyCredentials(String proxyUsername, String proxyPassword) {
-		this.proxyUsername = proxyUsername;
-		this.proxyPassword = proxyPassword;
-	}
-
-	public String getProxyUsername() {
-		return proxyUsername;
-	}
-
-	public String getProxyPassword() {
-		return proxyPassword;
 	}
 
 	public String getUserAgent() {
@@ -108,45 +61,12 @@ public class HttpTunnelClientChannelConfig extends HttpTunnelChannelConfig {
 		this.userAgent = userAgent;
 	}
 
-	public SocketAddress getProxyAddress() {
-		return proxyAddress;
-	}
-
-	public void setProxyAddress(SocketAddress proxyAddress) {
-		this.proxyAddress = proxyAddress;
-	}
-
 	/* HTTP TUNNEL SPECIFIC CONFIGURATION */
 	// TODO Support all options in the old tunnel (see
 	// HttpTunnelingSocketChannelConfig)
 	// Mostly SSL, virtual host, and URL prefix
 	@Override
 	public boolean setOption(String key, Object value) {
-		if (PROXY_ADDRESS_OPTION.equalsIgnoreCase(key)) {
-			SocketAddress proxyAddress = null;
-			if (value instanceof SocketAddress)
-				proxyAddress = (SocketAddress) value;
-			if (value instanceof String) {
-				this.setProxyAddress((String) value);
-				return true;
-			}
-			if (proxyAddress != null) {
-				this.setProxyAddress(proxyAddress);
-				return true;
-			}
-			return false;
-		}
-
-		if (PROXY_USERNAME_OPTION.equalsIgnoreCase(key)) {
-			this.proxyUsername = (String) value;
-			return true;
-		}
-
-		if (PROXY_PASSWORD_OPTION.equalsIgnoreCase(key)) {
-			this.proxyPassword = (String) value;
-			return true;
-		}
-
 		if (USER_AGENT_OPTION.equalsIgnoreCase(key)) {
 			this.setUserAgent((String) value);
 			return true;
