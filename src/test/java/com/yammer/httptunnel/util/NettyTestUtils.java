@@ -18,9 +18,8 @@ package com.yammer.httptunnel.util;
 
 import static org.junit.Assert.assertTrue;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
+import java.io.IOException;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -196,6 +195,10 @@ public class NettyTestUtils {
 		Assert.assertEquals(expectedValue, stateEvent.getValue());
 		return stateEvent;
 	}
+
+    public static InetAddress getLocalHost() throws UnknownHostException {
+        return InetAddress.getLocalHost();
+    }
 
 	public static Channel createServerChannel(InetSocketAddress addr, ChannelPipelineFactory pipelineFactory) {
 		// TCP socket factory

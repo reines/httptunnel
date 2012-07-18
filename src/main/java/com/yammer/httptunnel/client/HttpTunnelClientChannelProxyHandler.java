@@ -16,20 +16,11 @@
 
 package com.yammer.httptunnel.client;
 
-import java.net.Authenticator;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.PasswordAuthentication;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.net.*;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.ExceptionEvent;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
 import org.jboss.netty.handler.codec.http.HttpResponse;
@@ -121,10 +112,14 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 		proxyAuthSchemes.add(new BasicAuthScheme());
 	}
 
-	private AtomicReference<ProxyAuthHandler> proxyAuthHandler;
+	private final AtomicReference<ProxyAuthHandler> proxyAuthHandler;
+    private final AtomicReference<PasswordAuthentication> proxyAuthCredentials;
+    private final AtomicReference<HttpRequest> lastRequest;
 
 	public HttpTunnelClientChannelProxyHandler() {
 		proxyAuthHandler = new AtomicReference<ProxyAuthHandler>();
+        proxyAuthCredentials = new AtomicReference<PasswordAuthentication>();
+        lastRequest = new AtomicReference<HttpRequest>();
 	}
 
 	@Override
@@ -139,6 +134,7 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 
 	@Override
 	public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
+        final HttpRequest lastRequest = this.lastRequest.getAndSet(null);
 		final HttpResponse response = (HttpResponse) e.getMessage();
 
 		if (HttpTunnelMessageUtils.isProxyAuthResponse(response)) {
@@ -147,8 +143,23 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 
 			// Generate a proxy authentication header - throws an exception if
 			// no supported auth method or credentials
-			if (!proxyAuthHandler.compareAndSet(null, ProxyAuthHandler.init(response.getHeaders(HttpHeaders.Names.PROXY_AUTHENTICATE))))
+            final ProxyAuthHandler handler = ProxyAuthHandler.init(response.getHeaders(HttpHeaders.Names.PROXY_AUTHENTICATE));
+			if (!proxyAuthHandler.compareAndSet(null, handler))
 				throw new ProxyAuthenticationException("Received HTTP 407 response even though we already provided credentials");
+
+            final InetSocketAddress remoteAddress = (InetSocketAddress) e.getRemoteAddress();
+            final String prompt = String.format("Credentials required for proxy at %s:%d", remoteAddress.getHostString(), remoteAddress.getPort());
+
+            final PasswordAuthentication auth = Authenticator.requestPasswordAuthentication(remoteAddress.getAddress(), remoteAddress.getPort(), "HTTP", prompt, handler.getScheme().toString());
+            if (!proxyAuthCredentials.compareAndSet(null, auth))
+                throw new ProxyAuthenticationException("Received HTTP 407 response even though we already provided credentials");
+
+            if (lastRequest != null) {
+                if (LOG.isDebugEnabled())
+                    LOG.debug("Resending rejected request");
+
+                this.writeRequested(ctx, new DownstreamMessageEvent(e.getChannel(), Channels.future(e.getChannel()), lastRequest, e.getRemoteAddress()));
+            }
 
 			if (LOG.isDebugEnabled())
 				LOG.debug("resending request with proxy credentials");
@@ -165,14 +176,10 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 
 		// If we have a proxy auth header, add it into the request
         final ProxyAuthHandler handler = proxyAuthHandler.get();
-		if (handler != null) {
-            final InetSocketAddress remoteAddress = (InetSocketAddress) e.getRemoteAddress();
-
-            final PasswordAuthentication auth = Authenticator.requestPasswordAuthentication(remoteAddress.getAddress(), remoteAddress.getPort(), "http", "Credentials required for HTTP proxy", handler.getScheme().toString());
-            if (auth != null) {
-			    final String proxyAuthHeader = handler.authenticate(request, auth.getUserName(), new String(auth.getPassword()));
-			    request.setHeader(HttpHeaders.Names.PROXY_AUTHORIZATION, proxyAuthHeader);
-            }
+        final PasswordAuthentication auth = proxyAuthCredentials.get();
+		if (handler != null && auth != null) {
+            final String proxyAuthHeader = handler.authenticate(request, auth.getUserName(), new String(auth.getPassword()));
+            request.setHeader(HttpHeaders.Names.PROXY_AUTHORIZATION, proxyAuthHeader);
 		}
 
 		// request the connection be kept open for pipeling
@@ -180,6 +187,7 @@ class HttpTunnelClientChannelProxyHandler extends SimpleChannelHandler {
 		// request any proxy doesn't try give us a cached response
 		request.setHeader(HttpHeaders.Names.PRAGMA, "No-Cache");
 
+        lastRequest.set(request);
 		ctx.sendDownstream(e);
 	}
 }

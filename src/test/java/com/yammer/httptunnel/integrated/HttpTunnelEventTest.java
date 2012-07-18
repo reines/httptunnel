@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
 import org.jboss.netty.channel.Channel;
@@ -31,8 +32,8 @@ public class HttpTunnelEventTest {
 	private Channel acceptedChannel;
 
 	@Before
-	public void setUp() throws InterruptedException {
-		final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
+	public void setUp() throws InterruptedException, UnknownHostException {
+		final InetSocketAddress addr = new InetSocketAddress(NettyTestUtils.getLocalHost(), 8181);
 
 		serverHandler = new OpenCloseIncomingChannelHandler<String>(1);
 		serverChannel = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {

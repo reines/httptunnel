@@ -3,6 +3,7 @@ package com.yammer.httptunnel.integrated;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.FileUtils;
@@ -30,8 +31,8 @@ public class ThroughputTest {
 	// Ignored because really doing this over the loopback interface means nothing
 	// This needs converted to run over multiple machines rather than as a unit test
 	@Test @Ignore
-	public void testThroughput() {
-		final InetSocketAddress addr = new InetSocketAddress("localhost", 8888);
+	public void testThroughput() throws UnknownHostException {
+		final InetSocketAddress addr = new InetSocketAddress(NettyTestUtils.getLocalHost(), 8888);
 
 		final ThroughputChannelHandler serverHandler = new ThroughputChannelHandler();
 		final Channel server = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {

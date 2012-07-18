@@ -167,7 +167,7 @@ class HttpTunnelClientChannelSendHandler extends SimpleChannelHandler {
 		}
 		else {
 			if (LOG.isWarnEnabled())
-				LOG.warn("unknown response received for tunnel " + tunnelId + ", closing connection");
+				LOG.warn("unknown response (" + response.getStatus().getCode() + ") received for tunnel " + tunnelId + ", closing connection");
 
 			ctx.getChannel().close();
 		}

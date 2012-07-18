@@ -160,7 +160,7 @@ public class HttpTunnelLoadTest {
 		final ChannelBuffer message = NettyTestUtils.createRandomData(DATA_SIZE);
 		assertTrue("failed to create dummy message", message.readableBytes() == DATA_SIZE);
 
-		final InetSocketAddress addr = new InetSocketAddress(InetAddress.getLocalHost(), 8181);
+		final InetSocketAddress addr = new InetSocketAddress(NettyTestUtils.getLocalHost(), 8181);
 
 		final ThroughputIncomingChannelHandler serverHandler = new ThroughputIncomingChannelHandler(MESSAGE_COUNT * DATA_SIZE);
 		serverChannel = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {

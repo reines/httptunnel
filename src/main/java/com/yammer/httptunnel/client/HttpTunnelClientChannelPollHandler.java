@@ -127,7 +127,7 @@ class HttpTunnelClientChannelPollHandler extends SimpleChannelHandler {
 		}
 		else {
 			if (LOG.isWarnEnabled())
-				LOG.warn("non-OK response received for poll on tunnel " + tunnelId);
+				LOG.warn("non-OK response (" + response.getStatus().getCode() + ") received for poll on tunnel " + tunnelId);
 		}
 	}
 

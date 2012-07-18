@@ -113,7 +113,7 @@ public class HttpTunnelTest {
 		receivedBytes = ChannelBuffers.dynamicBuffer();
 		messageReceivedLatch = new CountDownLatch(1);
 
-		serverChannel = serverBootstrap.bind(new InetSocketAddress(InetAddress.getLocalHost(), 12345));
+		serverChannel = serverBootstrap.bind(new InetSocketAddress(NettyTestUtils.getLocalHost(), 12345));
 		activeConnections.add(serverChannel);
 	}
 
@@ -126,7 +126,7 @@ public class HttpTunnelTest {
 
 	@Test(timeout = 2000)
 	public void testConnectClientToServer() throws Exception {
-		final ChannelFuture connectFuture = clientBootstrap.connect(new InetSocketAddress(InetAddress.getLocalHost(), 12345));
+		final ChannelFuture connectFuture = clientBootstrap.connect(new InetSocketAddress(NettyTestUtils.getLocalHost(), 12345));
 
 		// Check we managed to connect within 1 second and we have a valid
 		// channel
@@ -153,7 +153,7 @@ public class HttpTunnelTest {
 
 	@Test
 	public void testSendDataFromClientToServer() throws Exception {
-		ChannelFuture connectFuture = clientBootstrap.connect(new InetSocketAddress(InetAddress.getLocalHost(), 12345));
+		ChannelFuture connectFuture = clientBootstrap.connect(new InetSocketAddress(NettyTestUtils.getLocalHost(), 12345));
 		assertTrue(connectFuture.await(1000L));
 
 		Channel clientEnd = connectFuture.getChannel();
@@ -171,7 +171,7 @@ public class HttpTunnelTest {
 
 	@Test
 	public void testSendDataFromServerToClient() throws Exception {
-		ChannelFuture connectFuture = clientBootstrap.connect(new InetSocketAddress(InetAddress.getLocalHost(), 12345));
+		ChannelFuture connectFuture = clientBootstrap.connect(new InetSocketAddress(NettyTestUtils.getLocalHost(), 12345));
 		assertTrue(connectFuture.await(1000L));
 
 		Channel clientEnd = connectFuture.getChannel();

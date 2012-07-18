@@ -3,6 +3,7 @@ package com.yammer.httptunnel.integrated;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -26,8 +27,8 @@ public class InterestOpsTest {
 	public static final int TIMEOUT = 2;
 
 	@Test
-	public void testSetUnreadable() throws InterruptedException {
-		final InetSocketAddress addr = new InetSocketAddress("localhost", 8181);
+	public void testSetUnreadable() throws InterruptedException, UnknownHostException {
+		final InetSocketAddress addr = new InetSocketAddress(NettyTestUtils.getLocalHost(), 8181);
 
 		final ReadableChannelHandler serverHandler = new ReadableChannelHandler();
 		final Channel server = NettyTestUtils.createServerChannel(addr, new ChannelPipelineFactory() {
